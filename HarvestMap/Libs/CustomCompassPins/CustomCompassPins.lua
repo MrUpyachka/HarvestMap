@@ -5,7 +5,6 @@ local minor = 34
 local COMPASS_PINS, oldminor = LibStub:NewLibrary(major, minor)
 if not COMPASS_PINS then return end -- lib was already loaded
 
-_G["COMPASS_PINS"] = COMPASS_PINS
 COMPASS_PINS.version = minor
 -- parent control of our compss pins
 local PARENT = COMPASS.container
