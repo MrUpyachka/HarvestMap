@@ -254,8 +254,8 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 	
 	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	-- refresh pins as a new one was added
-	Harvest.needsRefresh = Harvest.needsRefresh or {}
-	Harvest.needsRefresh[pinTypeId] = true
+	--Harvest.needsRefresh = Harvest.needsRefresh or {}
+	--Harvest.needsRefresh[pinTypeId] = true
 	HarvestFarm.FarmedANode(objectName, stackCount)
 end
 
@@ -400,24 +400,28 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	saveFile.data[ map ][ pinTypeId ] = saveFile.data[ map ][ pinTypeId ] or {}
 	
 	local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
-    
+	local pinType = Harvest.GetPinType( pinTypeId )
 	local stamp = Harvest.GetCurrentTimestamp()
 
 	-- If we have found this node already then we don't need to save it again
 	local divisionX, divisionY, index = Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 	if index then
 		local node = nodes[ divisionX ][ divisionY ][ index ]
-		
-		-- hide the node, if the respawn timer is used for recently harvested ressources
+
+		LMP:RemoveCustomPin( pinType, node.data )
+		COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
+
+		-- don't redraw the pin, if the respawn timer is used for recently harvested ressources
 		if Harvest.IsHiddenOnHarvest() then
 			if not node.hidden then
 				local pinType = Harvest.GetPinType( pinTypeId )
 				Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-				LMP:RemoveCustomPin( pinType, node.data )
-				COMPASS_PINS.pinManager:RemovePin( node.data, pinType )
 				node.hidden = true
 			end
 			node.time = GetFrameTimeSeconds()
+		else
+			LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+			COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 		end
 		
 		-- update the timestamp of the nodes items
@@ -436,7 +440,9 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		
 		-- serialize the node for the save file
 		saveFile.data[ map ][ pinTypeId ][ index ] = Harvest.Serialize( node.data )
-		
+
+		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), node.data )
+
 		Harvest.Debug( "data was merged with a previous node" )
 		return
 	end
@@ -460,7 +466,9 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	nodes[divisionX][divisionY][index] = { data = { x, y, nil, itemIds, stamp, Harvest.nodeVersion }, -- node data
 	                 time = GetFrameTimeSeconds(), -- time for the respawn timer
 	                 global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
-	
+
+	LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+	COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 	Harvest.Debug( "data was saved and a new pin was created" )
 end
 
@@ -615,7 +623,7 @@ function Harvest.UpdateHiddenTime(time)
 									if not node.hidden then
 										Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
 										LMP:RemoveCustomPin( pinType, node.data )
-										COMPASS_PINS.pinManager:RemovePin( node.data, pinType )
+										COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
 										node.hidden = true
 									end
 									node.time = time
@@ -630,7 +638,7 @@ function Harvest.UpdateHiddenTime(time)
 										--end
 										Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
 										LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-										COMPASS_PINS.pinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+										COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 										node.hidden = false
 									end
 								end
