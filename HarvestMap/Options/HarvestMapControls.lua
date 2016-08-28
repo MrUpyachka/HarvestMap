@@ -165,9 +165,21 @@ function Harvest.InitializeOptions()
 	
 	optionsTable:insert({
 		type = "slider",
+		name = Harvest.GetLocalization("maxcachedmaps"),
+		tooltip = Harvest.GetLocalization("maxcachedmapstooltip"),
+		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
+		min = 2,
+		max = 10,
+		getFunc = Harvest.GetMaxCachedMaps,
+		setFunc = Harvest.SetMaxCachedMaps,
+		default = Harvest.defaultSettings.maxCachedMaps,
+	})
+	
+	optionsTable:insert({
+		type = "slider",
 		name = Harvest.GetLocalization("hiddentime"),
 		tooltip = Harvest.GetLocalization("hiddentimetooltip"),
-		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
+		warning = Harvest.GetLocalization("hiddentimewarning"),
 		min = 0,
 		max = 30,
 		getFunc = Harvest.GetHiddenTime,
@@ -242,8 +254,8 @@ function Harvest.InitializeOptions()
 		type = "slider",
 		name = Harvest.GetLocalization("distance"),
 		tooltip = Harvest.GetLocalization("distancetooltip"),
-		min = 1,
-		max = 100,
+		min = 20,
+		max = 500,
 		getFunc = Harvest.GetDisplayedCompassDistance,
 		setFunc = Harvest.SetDisplayedCompassDistance,
 		default = Harvest.defaultSettings.compassLayouts[1].maxDistance * 1000

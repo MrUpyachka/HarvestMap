@@ -9,6 +9,14 @@ local LMP = LibStub("LibMapPins-1.0")
 local COMPASS_PINS = LibStub("CustomCompassPins")
 local GPS = LibStub("LibGPS2")
 
+-- local references for global functions to improve the performance
+-- of the functions called every frame
+local GetMapPlayerPosition = _G["GetMapPlayerPosition"]
+local GetInteractionType = _G["GetInteractionType"]
+local INTERACTION_HARVEST = _G["INTERACTION_HARVEST"]
+local pairs = _G["pairs"]
+local tostring = _G["tostring"]
+
 -- returns informations regarding the current location
 -- if viewedMap is true, the data is relative to the currently viewed map
 -- otherwise the data is related to the map the player is currently on
@@ -448,168 +456,154 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	Harvest.Debug( "data was saved and a new pin was created" )
 end
 
-do
-	-- local references for global functions to improve the performance
-	-- of the OnUpdate method
-	local GetInteractionType = _G["GetInteractionType"]
-	local INTERACTION_HARVEST = _G["INTERACTION_HARVEST"]
-	local GetInteractionType = _G["GetInteractionType"]
-
-	function Harvest.OnUpdate(time)
-		-- display delayed error message
-		-- this message is saved by a process which must not crash (ie deserialization)
-		if Harvest.error then
-			local e = Harvest.error
-			Harvest.error = nil
-			error(e)
-		end
-
-		-- update the update queue (importing/refactoring data)
-		if not Harvest.IsUpdateQueueEmpty() then
-			Harvest.UpdateUpdateQueue()
-			return
-		end
-
-		-- is there a pinType whose pins have to be refreshed? (ie was something harvested?)
-		if Harvest.needsRefresh then
-			-- only refresh the data after the loot window is closed
-			-- (AUI prevents refreshing pins while the loot window is open)
-			if LOOT_WINDOW.control:IsControlHidden() then
-				for pinTypeId,need in pairs(Harvest.needsRefresh) do
-					if need then
-						Harvest.RefreshPins( pinTypeId )
-					end
-				end
-				HarvestHeat.RefreshHeatmap()
-				Harvest.needsRefresh = nil
-			end
-		end
-
-		local interactionType = GetInteractionType()
-		local isHarvesting = (interactionType == INTERACTION_HARVEST)
-
-		-- update the harvesting state. check if the character was harvesting something during the last two seconds
-		if not isHarvesting then
-			if Harvest.wasHarvesting and time - Harvest.harvestTime > 2000 then
-				Harvest.Debug( "Two seconds since last harvesting action passed. Set harvesting state to false." )
-				Harvest.wasHarvesting = false
-			end
-		else
-			if not Harvest.wasHarvesting then
-				Harvest.Debug( "Started harvesting. Set harvesting state to true." )
-			end
-			Harvest.wasHarvesting = true
-			Harvest.harvestTime = time
-		end
-
-		-- the character started a new interaction
-		if interactionType ~= Harvest.lastInteractType then
-			Harvest.lastInteractType = interactionType
-			-- the character started picking a lock
-			if interactionType == INTERACTION_LOCKPICK then
-				-- if the interactable is owned by an NPC but the action isn't called "Steal From"
-				-- then it wasn't a safebox but a simple door: don't place a chest pin
-				if Harvest.lastInteractableOwned and (not (Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE20))) then
-					Harvest.Debug( "not a chest or justice container(?)" )
-					return
-				end
-				local map, x, y, measurement = Harvest.GetLocation()
-				-- normal chests aren't owned and their interaction is called "unlock"
-				-- other types of chests (ie for heists) aren't owned but their interaction is "search"
-				-- safeboxes are owned
-				if (not Harvest.lastInteractableOwned) and Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE12) then
-					-- normal chest
-					if not Harvest.IsPinTypeSavedOnGather( Harvest.CHESTS ) then
-						Harvest.Debug( "chests are disabled" )
-						return
-					end
-					Harvest.SaveData( map, x, y, measurement, Harvest.CHESTS )
-					Harvest.RefreshPins( Harvest.CHEST )
-				else
-					-- heist chest or safebox
-					if not Harvest.IsPinTypeSavedOnGather( Harvest.JUSTICE ) then
-						Harvest.Debug( "justice containers are disabled" )
-						return
-					end
-					Harvest.SaveData( map, x, y, measurement, Harvest.JUSTICE )
-					Harvest.RefreshPins( Harvest.JUSTICE )
-				end
-			end
-			-- the character started fishing
-			if interactionType == INTERACTION_FISH then
-				-- don't create new pin if fishing pins are disabled
-				if not Harvest.IsPinTypeSavedOnGather( Harvest.FISHING ) then
-					Harvest.Debug( "fishing spots are disabled" )
-					return
-				end
-				local map, x, y, measurement = Harvest.GetLocation()
-				Harvest.SaveData( map, x, y, measurement, Harvest.FISHING )
-				Harvest.RefreshPins( Harvest.FISHING )
-			end
-		end
-		
-		-- update the respawn timer feature
-		Harvest.UpdateHiddenTime(time / 1000) -- function was written with seconds in mind instead of miliseconds
+function Harvest.OnUpdate(time)
+	-- display delayed error message
+	-- this message is saved by a process which must not crash (ie deserialization)
+	if Harvest.error then
+		local e = Harvest.error
+		Harvest.error = nil
+		error(e)
 	end
+
+	-- update the update queue (importing/refactoring data)
+	if not Harvest.IsUpdateQueueEmpty() then
+		Harvest.UpdateUpdateQueue()
+		return
+	end
+
+	-- is there a pinType whose pins have to be refreshed? (ie was something harvested?)
+	if Harvest.needsRefresh then
+		-- only refresh the data after the loot window is closed
+		-- (AUI prevents refreshing pins while the loot window is open)
+		if LOOT_WINDOW.control:IsControlHidden() then
+			for pinTypeId,need in pairs(Harvest.needsRefresh) do
+				if need then
+					Harvest.RefreshPins( pinTypeId )
+				end
+			end
+			HarvestHeat.RefreshHeatmap()
+			Harvest.needsRefresh = nil
+		end
+	end
+
+	local interactionType = GetInteractionType()
+	local isHarvesting = (interactionType == INTERACTION_HARVEST)
+
+	-- update the harvesting state. check if the character was harvesting something during the last two seconds
+	if not isHarvesting then
+		if Harvest.wasHarvesting and time - Harvest.harvestTime > 2000 then
+			Harvest.Debug( "Two seconds since last harvesting action passed. Set harvesting state to false." )
+			Harvest.wasHarvesting = false
+		end
+	else
+		if not Harvest.wasHarvesting then
+			Harvest.Debug( "Started harvesting. Set harvesting state to true." )
+		end
+		Harvest.wasHarvesting = true
+		Harvest.harvestTime = time
+	end
+
+	-- the character started a new interaction
+	if interactionType ~= Harvest.lastInteractType then
+		Harvest.lastInteractType = interactionType
+		-- the character started picking a lock
+		if interactionType == INTERACTION_LOCKPICK then
+			-- if the interactable is owned by an NPC but the action isn't called "Steal From"
+			-- then it wasn't a safebox but a simple door: don't place a chest pin
+			if Harvest.lastInteractableOwned and (not (Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE20))) then
+				Harvest.Debug( "not a chest or justice container(?)" )
+				return
+			end
+			local map, x, y, measurement = Harvest.GetLocation()
+			-- normal chests aren't owned and their interaction is called "unlock"
+			-- other types of chests (ie for heists) aren't owned but their interaction is "search"
+			-- safeboxes are owned
+			if (not Harvest.lastInteractableOwned) and Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE12) then
+				-- normal chest
+				if not Harvest.IsPinTypeSavedOnGather( Harvest.CHESTS ) then
+					Harvest.Debug( "chests are disabled" )
+					return
+				end
+				Harvest.SaveData( map, x, y, measurement, Harvest.CHESTS )
+				Harvest.RefreshPins( Harvest.CHEST )
+			else
+				-- heist chest or safebox
+				if not Harvest.IsPinTypeSavedOnGather( Harvest.JUSTICE ) then
+					Harvest.Debug( "justice containers are disabled" )
+					return
+				end
+				Harvest.SaveData( map, x, y, measurement, Harvest.JUSTICE )
+				Harvest.RefreshPins( Harvest.JUSTICE )
+			end
+		end
+		-- the character started fishing
+		if interactionType == INTERACTION_FISH then
+			-- don't create new pin if fishing pins are disabled
+			if not Harvest.IsPinTypeSavedOnGather( Harvest.FISHING ) then
+				Harvest.Debug( "fishing spots are disabled" )
+				return
+			end
+			local map, x, y, measurement = Harvest.GetLocation()
+			Harvest.SaveData( map, x, y, measurement, Harvest.FISHING )
+			Harvest.RefreshPins( Harvest.FISHING )
+		end
+	end
+	
+	-- update the respawn timer feature
+	Harvest.UpdateHiddenTime(time / 1000) -- function was written with seconds in mind instead of miliseconds
 end
 
 -- harvestmap will hide recently visited pins for a given respawn time (time is set in the options)
 -- this function handles this respawn timer feature
 -- this function also updates the last visited pin for the farming helper
-do
-	local GetMapPlayerPosition = _G["GetMapPlayerPosition"]
-	local pairs = _G["pairs"]
-	local tostring = _G["tostring"]
+function Harvest.UpdateHiddenTime(time)
+	local hiddenTime = Harvest.GetHiddenTime()
+	-- this function could result in a performance loss
+	-- so don't do anything if it isn't needed
+	if hiddenTime == 0 then
+		return
+	end
+	hiddenTime = hiddenTime * 60 -- minutes to seconds
 
-	function Harvest.UpdateHiddenTime(time)
-		local hiddenTime = Harvest.GetHiddenTime()
-		-- this function could result in a performance loss
-		-- so don't do anything if it isn't needed
-		if hiddenTime == 0 then
-			return
-		end
-		hiddenTime = hiddenTime * 60 -- minutes to seconds
-
-		local map = Harvest.GetMap()
-		local x, y = GetMapPlayerPosition( "player" )
-		local dx, dy
-		local minDistance = Harvest.GetMinDistanceBetweenPins()
-		local nodes, pinType
-		local onHarvest = Harvest.IsHiddenOnHarvest()
-		-- iterating over all the pins on the current map
-		for _, pinTypeId in pairs(Harvest.PINTYPES) do
-			-- if the pins are insivible, there is nothing we need to do...
-			if Harvest.IsPinTypeVisible( pinTypeId ) then
-				nodes = Harvest.GetNodesOnMap( pinTypeId, map )
-				pinType = Harvest.GetPinType( pinTypeId )
-				-- check if one of the visible pins needs to be hidden
-				for _, node in pairs(nodes) do
-					dx = x - node.data[Harvest.X]
-					dy = y - node.data[Harvest.Y]
-					if (not onHarvest) and dx * dx + dy * dy < minDistance then
-						-- the player is close to the pin
-						-- now check if it has a pin
-						if not node.hidden then
-							Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-							LMP:RemoveCustomPin( pinType, node.data )
-							COMPASS_PINS.pinManager:RemovePin( node.data, pinType )
-							node.hidden = true
-						end
-						node.time = time
-					else
-						-- the player isn't close to the pin, so check if we have to show it again
-						if node.hidden and (time - node.time > hiddenTime) then
-							--if not ZO_WorldMap_IsWorldMapShowing() then
-							--	if(SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED) then
-							--		CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
-							--		return
-							--	end
-							--end
-							Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
-							LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-							COMPASS_PINS.pinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-							node.hidden = false
-						end
+	local map = Harvest.GetMap()
+	local x, y = GetMapPlayerPosition( "player" )
+	local dx, dy
+	local minDistance = Harvest.GetMinDistanceBetweenPins()
+	local nodes, pinType
+	local onHarvest = Harvest.IsHiddenOnHarvest()
+	-- iterating over all the pins on the current map
+	for _, pinTypeId in pairs(Harvest.PINTYPES) do
+		-- if the pins are insivible, there is nothing we need to do...
+		if Harvest.IsPinTypeVisible( pinTypeId ) then
+			nodes = Harvest.GetNodesOnMap( pinTypeId, map )
+			pinType = Harvest.GetPinType( pinTypeId )
+			-- check if one of the visible pins needs to be hidden
+			for _, node in pairs(nodes) do
+				dx = x - node.data[Harvest.X]
+				dy = y - node.data[Harvest.Y]
+				if (not onHarvest) and dx * dx + dy * dy < minDistance then
+					-- the player is close to the pin
+					-- now check if it has a pin
+					if not node.hidden then
+						Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
+						LMP:RemoveCustomPin( pinType, node.data )
+						COMPASS_PINS.pinManager:RemovePin( node.data, pinType )
+						node.hidden = true
+					end
+					node.time = time
+				else
+					-- the player isn't close to the pin, so check if we have to show it again
+					if node.hidden and (time - node.time > hiddenTime) then
+						--if not ZO_WorldMap_IsWorldMapShowing() then
+						--	if(SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED) then
+						--		CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
+						--		return
+						--	end
+						--end
+						Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
+						LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+						COMPASS_PINS.pinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+						node.hidden = false
 					end
 				end
 			end
@@ -713,7 +707,7 @@ function Harvest.ImportFromMap( map, data, target, checkPinType )
 											oldNode[Harvest.ITEMS] = newNode[Harvest.ITEMS]
 										end
 									end
-								elseif next( oldNode[Harvest.ITEMS] ) ~= nil then
+								elseif oldNode[Harvest.ITEMS] and next( oldNode[Harvest.ITEMS] ) ~= nil then
 									oldNode[Harvest.ITEMS] = {}
 								end
 								-- update the timestamp of the node, to confirm it's a recent position
@@ -835,7 +829,15 @@ end
 -- data is stored as ACE strings
 -- this functions deserializes the strings and saves the results in the cache
 function Harvest.LoadToCache( pinTypeId, map, measurement )
-	Harvest.cache[ map ] = Harvest.cache[ map ] or {}
+	if not Harvest.cache[ map ] then
+		Harvest.lastCachedIndex = Harvest.lastCachedIndex + 1
+		for map, data in pairs(Harvest.cache) do
+			if data.index <= Harvest.lastCachedIndex - Harvest.GetMaxCachedMaps() then
+				Harvest.cache[ map ] = nil
+			end
+		end
+		Harvest.cache[ map ] = {index = Harvest.lastCachedIndex}
+	end
 	-- only deserialize/load the data if it hasn't been loaded already
 	if Harvest.cache[ map ][ pinTypeId ] == nil and measurement then
 		local unpack = _G["unpack"]
@@ -996,6 +998,7 @@ function Harvest.OnLoad(eventCode, addOnName)
 	-- cache the ACE deserialized nodes
 	-- this way changing maps multiple times will create less lag
 	Harvest.cache = {}
+	Harvest.lastCachedIndex = 0
 	-- mapCounter and compassCounter are used by the delayed pin creation procedure
 	-- these procedures are in the HarvestMapMarkers.lua and HarvestMapCompass.lua
 	Harvest.mapCounter = {}

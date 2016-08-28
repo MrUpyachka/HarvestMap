@@ -1,6 +1,6 @@
 ## Title: HarvestMap
 ## Author: Shinni
-## Version: 3.3.1
+## Version: 3.3.2
 ## APIVersion: 100016 100015
 ## OptionalDependsOn: LibAddonMenu-2.0 LibMapPing LibGPS CustomCompassPins AceSerializer-3.0 LibMapPins-1.0 HarvestMapEP HarvestMapDC HarvestMapAD MiniMap
 ## SavedVariables: Harvest_SavedVars
@@ -21,10 +21,10 @@ Libs/LibAddonMenu-2.0/controls/slider.lua
 Libs/LibAddonMenu-2.0/controls/texture.lua
 Libs/LibAddonMenu-2.0/controls/iconpicker.lua
 Libs/AceSerializer-3.0/AceSerializer-3.0.lua
-Libs/CustomCompassPins/CustomCompassPins.lua
 Libs/LibMapPins-1.0/LibMapPins-1.0.lua
 Libs/LibMapPing/LibMapPing.lua
 Libs/LibGPS/LibGPS.lua
+Libs/CustomCompassPins/CustomCompassPins.lua
 
 HarvestMap.lua
 HarvestMapConstants.lua

@@ -1,6 +1,6 @@
 ## Title: HarvestMap-DC-Zones
 ## Author: Shinni
-## Version: 3.3.1
+## Version: 3.3.2
 ## APIVersion: 100016 100015
 ## SavedVariables: HarvestDC_SavedVars
 
