@@ -17,6 +17,9 @@ function Harvest.AddMapPinCallback( pinTypeId )
 	end
 
 	local map, x, y, measurement = Harvest.GetLocation( true )
+	x, y = Harvest.GetSubdivisionCoords(x, y, measurement)
+	Harvest.lastDivisionX = x
+	Harvest.lastDivisionY = y
 	local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
 	local pinType = Harvest.GetPinType( pinTypeId )
 	local pinData = LMP.pinManager.customPins[_G[pinType]]
@@ -26,7 +29,19 @@ function Harvest.AddMapPinCallback( pinTypeId )
 		LMP.pinManager:RemovePins(pinData.pinTypeString)
 	end
 	Harvest.mapCounter[pinType] = Harvest.mapCounter[pinType] + 1
-	Harvest.AddPinsLater(Harvest.mapCounter[pinType], pinType, nodes, nil)
+	
+	local division
+	for i = -2, 2 do
+		divisions = nodes[x+i]
+		if divisions then
+			for j = -2, 2 do
+				division = divisions[y+j]
+				if division then
+					Harvest.AddPinsLater(Harvest.mapCounter[pinType], pinType, division, nil)
+				end
+			end
+		end
+	end
 end
 
 function Harvest.AddPinsLater(counter, pinType, nodes, index)
@@ -71,7 +86,7 @@ function Harvest.AddPinsLater(counter, pinType, nodes, index)
 		end
 		lastIndex = index
 	end
-	if FyrMM then
+	if FyrMM then--or Harvest.HasPinVisibleDistance() then
 		Harvest.AddPinsLater(counter, pinType, nodes, index)
 	else
 		zo_callLater(function() Harvest.AddPinsLater(counter, pinType, nodes, index) end, 0.1)
@@ -147,12 +162,16 @@ Harvest.debugHandler = {
 			--LMP:RemoveCustomPin( pinType, pinTag )
 			local map = Harvest.GetMap()
 			local saveFile = Harvest.GetSaveFile( map )
-			for i, node in pairs( Harvest.cache[ map ][ pinTypeId ]) do
-				if node.data == pinTag then
-					LMP:RemoveCustomPin( pinType, pinTag )
-					saveFile.data[ map ][ pinTypeId ][ i ] = nil
-					Harvest.cache[ map ][ pinTypeId ][ i ] = nil
-					return
+			for x, divisions in pairs( Harvest.cache[ map ].subdivisions[ pinTypeId ]) do
+				for y, division in pairs(divisions) do
+					for index, node in pairs(division) do
+						if node.data == pinTag then
+							LMP:RemoveCustomPin( pinType, pinTag )
+							saveFile.data[ map ][ pinTypeId ][ index ] = nil
+							division[ index ] = nil
+							return
+						end
+					end
 				end
 			end
 

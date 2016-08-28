@@ -126,5 +126,7 @@ Harvest.defaultSettings = {
 	hiddenOnHarvest = false,
 	hideArrow = false,
 	hideFarmingInterface = false,
-	maxCachedMaps = 5
+	maxCachedMaps = 5,
+	maxVisibleDistance = 0.004062019202318,
+	hasMaxVisibleDistance = false,
 }

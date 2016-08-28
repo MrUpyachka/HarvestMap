@@ -30,10 +30,24 @@ function Harvest.AddCompassCallback( pinTypeId, g_mapPinManager )
 	end
 
 	local map, x, y, measurement = Harvest.GetLocation( true )
+	x, y = Harvest.GetSubdivisionCoords(x, y, measurement)
 	local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
+	
 	local pinType = Harvest.GetPinType( pinTypeId )
 	Harvest.compassCounter[pinType] = Harvest.compassCounter[pinType] + 1
-	Harvest.AddCompassPinsLater(Harvest.compassCounter[pinType], g_mapPinManager, pinType, nodes, nil)
+	
+	local division
+	for i = -2, 2 do
+		divisions = nodes[x+i]
+		if divisions then
+			for j = -2, 2 do
+				division = divisions[y+j]
+				if division then
+					Harvest.AddCompassPinsLater(Harvest.compassCounter[pinType], g_mapPinManager, pinType, division, nil)
+				end
+			end
+		end
+	end
 end
 
 function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index)
@@ -64,7 +78,12 @@ function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, i
 			g_mapPinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 		end
 	end
-	zo_callLater(function() Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index) end, 0.1)
+	--if Harvest.HasPinVisibleDistance() then
+	--	Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index)
+	--else
+		zo_callLater(function() Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index) end, 0.1)
+	--end
+	
 end
 
 function Harvest.InitializeCompassPinType( pinTypeId )

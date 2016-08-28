@@ -5,6 +5,34 @@ if not Harvest then
 	Harvest = {}
 end
 
+function Harvest.HasPinVisibleDistance()
+	return Harvest.savedVars["settings"].hasMaxVisibleDistance
+end
+
+function Harvest.SetHasPinVisibleDistance( value )
+	Harvest.savedVars["settings"].hasMaxVisibleDistance = value
+	Harvest.cache = {}
+	Harvest.RefreshPins()
+end
+
+function Harvest.GetDisplayPinVisibleDistance()
+	local distance = Harvest.savedVars["settings"].maxVisibleDistance
+	return zo_round(distance  / math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins())) * 10
+end
+
+function Harvest.GetPinVisibleDistance()
+	if Harvest.savedVars["settings"].hasMaxVisibleDistance then--Harvest.savedVars["settings"].hasMaxVisibleDistance then
+		return Harvest.savedVars["settings"].maxVisibleDistance
+	end
+	return 1000
+end
+
+function Harvest.SetPinVisibleDistance(distance)
+	Harvest.savedVars["settings"].maxVisibleDistance = distance * math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins()) / 10
+	Harvest.cache = {}
+	Harvest.RefreshPins()
+end
+
 function Harvest.GetMaxCachedMaps()
 	return Harvest.savedVars["settings"].maxCachedMaps
 end

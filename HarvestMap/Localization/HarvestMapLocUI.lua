@@ -53,7 +53,7 @@ local allLocalizations = {
 		["fov"] = "Field of View",
 		["fovtooltip"] = "Sets the field of view on the compass for HarvestMap's pins.\nSetting this value to 360° will display all pins on the compass, 180° will display all pins in front of you on the compass.\nThe default value is 90° which is the field of view for the other compass pins.",
 		["distance"] = "Max pin distance",
-		["distancetooltip"] = "The maximum distance for pins to appear on the compass.",
+		["distancetooltip"] = "The maximum distance for pins in meters that appear on the compass.",
 		["compass"] = "Enable compass",
 		["compasstooltip"] = "Enable the display of close pins on the compass. Can be disabled to increase performance.",
 		["minnodedist"] = "Minimum Node Distance",
@@ -108,6 +108,11 @@ local allLocalizations = {
 
 		["maxcachedmaps"] = "Maximum number of cached maps",
 		["maxcachedmapstooltip"] = "HarvestMap will keep the nodes of previously viewed maps in memory to display them faster when viewing thos maps again. However keeping the data in memory can negatively impact the game's performance.",
+		
+		["hasdrawdistance"] = "Display only nearby pins",
+		["hasdrawdistancetooltip"] = "When enabled, HarvestMap will only create pins for harvest locations that are close to the player.",
+		["drawdistance"] = "Draw distance",
+		["drawdistancetooltip"] = "The distance threshold for which pins are drawn, when 'Display only nearby pins' is enabled.",
 	},
 	["de"] = {
 		["pintype1"] = "Schmied Pins",
@@ -147,7 +152,7 @@ local allLocalizations = {
 		["fov"] = "Sichtfeld",
 		["fovtooltip"] = "Setze das Sichtfeld für die Pins auf dem Kompass.\nIst dieser Wert auf 360°, so werden alle Pins angezeigt, bei 180° erscheinen nur Pins vor dir auf dem Kompass angezeigt.\nDer Standardwert liegt bei 108°, was dem Sichtfeld der gewöhnlichen Kompasspins entspricht.",
 		["distance"] = "Maximale Pinentfernung",
-		["distancetooltip"] = "Die maximale Entfernung von Pins, sodass diese noch immer auf dem Kompass erscheinen.",
+		["distancetooltip"] = "Die maximale Entfernung von Pins in Metern, sodass diese noch immer auf dem Kompass erscheinen.",
 		["compass"] = "Aktiviere Kompasspins",
 		["compasstooltip"] = "Aktiviere diese Einstellung um nahegelegene Pins auf dem Kompass anzeigen zu lassen. Deaktivieren kann zu einer Performanzverbesserung führen.",
 		["apply"] = zo_strupper("ü") .. "bernehmen",
@@ -200,6 +205,11 @@ local allLocalizations = {
 
 		["maxcachedmaps"] = "Maximale Anzahl Karten im Cache",
 		["maxcachedmapstooltip"] = "HarvestMap hält die Erntepunkte vorher betrachteter Karten im Arbeitsspeicher, um diese Karten bei erneutem betrachten schneller laden zu können. Der erhöhte Speicherbedarf kann aber die Performanz negativ beeinflussen.",
+		
+		["hasdrawdistance"] = "Zeige nur nahe Pins",
+		["hasdrawdistancetooltip"] = "Falls aktiviert, wird HarvestMap nur Pins in der n�he des Spieler anzeigen.",
+		["drawdistance"] = "Anzeigedistanz",
+		["drawdistancetooltip"] = "Die Distanzgrenze für die 'Zeige nur nahe Pins' Option.",
 	},
 	["fr"] = { --translation based on wookiefrag's input.
 		["pintype1"] = "Gisements Pins",

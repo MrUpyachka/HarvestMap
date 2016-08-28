@@ -53,10 +53,16 @@ function HarvestHeat.CalculateHeatMap()
 	for _, pinTypeId in pairs(harvest.PINTYPES) do
 		if harvest.IsPinTypeVisible( pinTypeId ) then
 			local nodes = harvest.GetNodesOnMap( pinTypeId, mapName, measurement )
-			for nodeIndex, node in pairs(nodes) do
-				x = zo_max(0, zo_min(zo_floor(node.data[1] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
-				y = zo_max(0, zo_min(zo_floor(node.data[2] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
-				map[x][y] = map[x][y] + 1
+			for _, divisions in pairs(nodes) do
+				for _, division in pairs(divisions) do
+					if division then
+						for nodeIndex, node in pairs(division) do
+							x = zo_max(0, zo_min(zo_floor(node.data[1] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
+							y = zo_max(0, zo_min(zo_floor(node.data[2] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
+							map[x][y] = map[x][y] + 1
+						end
+					end
+				end
 			end
 		end
 	end

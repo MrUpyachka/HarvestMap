@@ -77,10 +77,16 @@ local function constructGraph(maxLength)
 	for _, pinTypeId in pairs(Harvest.PINTYPES) do
 		if HarvestFarm.includedPinTypes[ pinTypeId ] then
 			local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
-			for nodeIndex, node in pairs(nodes) do
-				-- each point/vertex consists of and x and y coordinate and a list of the neighbors/edges
-				table.insert(points, {node.data[1], node.data[2], node.global[1], node.global[2], edges={}})
-				num_data_points = num_data_points + 1
+			for _, divisions in pairs(nodes) do
+				for _, division in pairs(divisions) do
+					if division then
+						for nodeIndex, node in pairs(division) do
+							-- each point/vertex consists of and x and y coordinate and a list of the neighbors/edges
+							table.insert(points, {node.data[1], node.data[2], node.global[1], node.global[2], edges={}})
+							num_data_points = num_data_points + 1
+						end
+					end
+				end
 			end
 		end
 	end

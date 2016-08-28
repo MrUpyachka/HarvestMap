@@ -176,6 +176,29 @@ function Harvest.InitializeOptions()
 	})
 	
 	optionsTable:insert({
+		type = "checkbox",
+		name = Harvest.GetLocalization("hasdrawdistance"),
+		tooltip = Harvest.GetLocalization("hasdrawdistancetooltip"),
+		getFunc = Harvest.HasPinVisibleDistance,
+		setFunc = Harvest.SetHasPinVisibleDistance,
+		default = Harvest.defaultSettings.hasMaxVisibleDistance,
+		width = "half",
+	})
+	
+	optionsTable:insert({
+		type = "slider",
+		name = Harvest.GetLocalization("drawdistance"),
+		tooltip = Harvest.GetLocalization("drawdistancetooltip"),
+		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
+		min = 20,
+		max = 250,
+		getFunc = Harvest.GetDisplayPinVisibleDistance,
+		setFunc = Harvest.SetPinVisibleDistance,
+		default = 0,
+		width = "half",
+	})
+	
+	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("hiddentime"),
 		tooltip = Harvest.GetLocalization("hiddentimetooltip"),
