@@ -417,6 +417,12 @@ local nodeName2PinType = {
 	["Rune d'Aspect"] = Harvest.ENCHANTING,
 	["Rune d'Essence"] = Harvest.ENCHANTING,
 	["Rune de Puissance"] = Harvest.ENCHANTING,
+	
+	["Runestone"] = Harvest.ENCHANTING,
+	["Runenstein"] = Harvest.ENCHANTING,
+	["Pierre runique"] = Harvest.ENCHANTING,
+	["Pунa"] = Harvest.ENCHANTING,
+	
 
 	["Blessed Thistle"] = Harvest.ALCHEMY,
 	["Entoloma"] = Harvest.ALCHEMY,

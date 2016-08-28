@@ -1,6 +1,6 @@
 ## Title: HarvestMap-EP-Zones
 ## Author: Shinni
-## Version: 3.3.1
+## Version: 3.3.3
 ## APIVersion: 100016 100015
 ## SavedVariables: HarvestEP_SavedVars
 

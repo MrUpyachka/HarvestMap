@@ -5,6 +5,13 @@ if not Harvest then
 	Harvest = {}
 end
 
+function Harvest.GetMaxCachedMaps()
+	return Harvest.savedVars["settings"].maxCachedMaps
+end
+
+function Harvest.SetMaxCachedMaps( num )
+	Harvest.savedVars["settings"].maxCachedMaps = num
+end
 
 function Harvest.GetGlobalMinDistanceBetweenPins()
 	-- delves tend to be scaled down on the zone map, so we need to return a smaller value

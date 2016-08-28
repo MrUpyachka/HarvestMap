@@ -165,6 +165,18 @@ function Harvest.InitializeOptions()
 	
 	optionsTable:insert({
 		type = "slider",
+		name = Harvest.GetLocalization("maxcachedmaps"),
+		tooltip = Harvest.GetLocalization("maxcachedmapstooltip"),
+		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
+		min = 1,
+		max = 30,
+		getFunc = Harvest.GetMaxCachedMaps,
+		setFunc = Harvest.SetMaxCachedMaps,
+		default = Harvest.defaultSettings.maxCachedMaps,
+	})
+	
+	optionsTable:insert({
+		type = "slider",
 		name = Harvest.GetLocalization("hiddentime"),
 		tooltip = Harvest.GetLocalization("hiddentimetooltip"),
 		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
