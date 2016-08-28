@@ -108,11 +108,14 @@ function Harvest.IsHeatmapActive()
 end
 
 function Harvest.GetDisplayedCompassDistance()
-	return Harvest.savedVars["settings"].compassLayouts[1].maxDistance * 1000
+	return zo_round(Harvest.savedVars["settings"].compassLayouts[1].maxDistance / math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins())) * 10
 end
 
 function Harvest.SetDisplayedCompassDistance( value )
-	Harvest.savedVars["settings"].compassLayouts[1].maxDistance = value / 1000.0
+	for _, pinTypeId in pairs(Harvest.PINTYPES) do
+		Harvest.savedVars["settings"].compassLayouts[pinTypeId].maxDistance = value * math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins()) / 10
+		COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
+	end
 end
 
 function Harvest.GetDisplayedFOV()
@@ -121,10 +124,10 @@ function Harvest.GetDisplayedFOV()
 end
 
 function Harvest.SetDisplayedFOV( value )
-	for _, pinType in pairs(Harvest.PINTYPES) do
-		Harvest.savedVars["settings"].compassLayouts[ pinType ].FOV = 2 * value * math.pi / 360
+	for _, pinTypeId in pairs(Harvest.PINTYPES) do
+		Harvest.savedVars["settings"].compassLayouts[ pinTypeId ].FOV = 2 * value * math.pi / 360
+		COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
 	end
-	COMPASS_PINS:RefreshPins()
 end
 
 function Harvest.AreSettingsAccountWide()

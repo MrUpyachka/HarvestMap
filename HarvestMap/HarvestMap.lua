@@ -832,11 +832,11 @@ function Harvest.LoadToCache( pinTypeId, map, measurement )
 	if not Harvest.cache[ map ] then
 		Harvest.lastCachedIndex = Harvest.lastCachedIndex + 1
 		for map, data in pairs(Harvest.cache) do
-			if data.index < Harvest.lastCachedIndex + Harvest.Harvest.GetMaxCachedMaps() then
-				Harvest.cache[map] = nil
+			if data.index <= Harvest.lastCachedIndex - Harvest.GetMaxCachedMaps() then
+				Harvest.cache[ map ] = nil
 			end
 		end
-		Harvest.cache = {index = Harvest.lastCachedIndex}
+		Harvest.cache[ map ] = {index = Harvest.lastCachedIndex}
 	end
 	-- only deserialize/load the data if it hasn't been loaded already
 	if Harvest.cache[ map ][ pinTypeId ] == nil and measurement then

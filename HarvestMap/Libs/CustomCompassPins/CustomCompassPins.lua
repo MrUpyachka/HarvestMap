@@ -5,6 +5,7 @@ local minor = 34
 local COMPASS_PINS, oldminor = LibStub:NewLibrary(major, minor)
 if not COMPASS_PINS then return end -- lib was already loaded
 
+_G["COMPASS_PINS"] = COMPASS_PINS
 COMPASS_PINS.version = minor
 -- parent control of our compss pins
 local PARENT = COMPASS.container
@@ -30,6 +31,7 @@ local GetMapPlayerPosition = _G["GetMapPlayerPosition"]
 
 -- if there was an old version of the library loaded, we need to removed the old callbacks
 if oldminor then
+	EVENT_MANAGER:UnregisterForEvent("CustomCompassPins", PLAYER_ACTIVATED)
 	EVENT_MANAGER:UnregisterForUpdate("CustomCompassPins")
 	EVENT_MANAGER:UnregisterForUpdate("CustomCompassPinsMapChange")
 	CALLBACK_MANAGER:UnregisterCallback("OnWorldMapChanged", COMPASS_PINS.OnWorldMapChanged)
@@ -38,21 +40,25 @@ end
 
 -- COMPASS_PINS:Initialize() will be called after the rest of this library was loaded
 function COMPASS_PINS.Initialize()
-	if not oldminor then
-		COMPASS_PINS.pinControlPool = ZO_ControlPool.New({}, "ZO_MapPin", PARENT, "CustomPin")
-		COMPASS_PINS.pinCallbacks = {}
-		COMPASS_PINS.pinLayouts = {}
-		COMPASS_PINS.visiblePins = {}
-		COMPASS_PINS.pinTables = {}
-	end
+	COMPASS_PINS.pinCallbacks = {}
+	COMPASS_PINS.pinLayouts = {}
+	COMPASS_PINS.visiblePins = {}
+	COMPASS_PINS.pinTables = {}
+	
+	COMPASS_PINS.pinControlPool = ZO_ControlPool:New("ZO_MapPin", PARENT, "CustomPin")
 	COMPASS_PINS.defaultMeasurement = {scaleX = 0, scaleY = 0}
 	COMPASS_PINS.mapMeasurement = COMPASS_PINS.defaultMeasurement
 	COMPASS_PINS.needsRefresh = {} -- table to store the pinType, which need to be refreshed
-	-- update the position of the pins every 20 ms
-	EVENT_MANAGER:RegisterForUpdate("CustomCompassPinsUpdate", 20, COMPASS_PINS.Update)
-	-- every 3 seconds set the map to the player position,
-	-- because the player might've entered/left a city etc
-	EVENT_MANAGER:RegisterForUpdate("CustomCompassPinsMapChange", 3000, COMPASS_PINS.SetMapToCurrentPosition)
+
+	-- don't do these update methods while the palyer is still in the loading screen
+	EVENT_MANAGER:RegisterForEvent("CustomCompassPins", EVENT_PLAYER_ACTIVATED, function()
+		EVENT_MANAGER:UnregisterForEvent("CustomCompassPins", EVENT_PLAYER_ACTIVATED)
+		-- update the position of the pins every 20 ms
+		EVENT_MANAGER:RegisterForUpdate("CustomCompassPinsUpdate", 20, COMPASS_PINS.Update)
+		-- every 3 seconds set the map to the player position,
+		-- because the player might've entered/left a city etc
+		EVENT_MANAGER:RegisterForUpdate("CustomCompassPinsMapChange", 3000, COMPASS_PINS.SetMapToCurrentPosition)
+	end)
 	CALLBACK_MANAGER:RegisterCallback("OnWorldMapChanged", COMPASS_PINS.OnWorldMapChanged)
 	WORLD_MAP_SCENE:RegisterCallback("StateChange", COMPASS_PINS.OnMapStateChange)
 end
@@ -100,14 +106,14 @@ function COMPASS_PINS.Refresh()
 		if not COMPASS_PINS.mapMeasurement then
 			COMPASS_PINS.mapMeasurement = COMPASS_PINS.defaultMeasurement
 		end
-		COMPASS_PINS.RefreshPins()
+		COMPASS_PINS:RefreshPins()
 	end
 end
 
 -- pinType should be a string eg "skyshard"
 -- pinCallbacks should be a function, which will be called when new pins should be created
 -- layout should be a table, which defines a pin's texture and maxDistance
-function COMPASS_PINS.AddCustomPin(pinType, pinCallback, layout)
+function COMPASS_PINS:AddCustomPin(pinType, pinCallback, layout)
 	-- check if the given arguments have the corrent type, 
 	-- to prevent errors in the OnUpdate callback, which are a lot harder to debug
 	if type(pinType) ~= "string" or COMPASS_PINS.pinLayouts[pinType] ~= nil or
@@ -124,7 +130,7 @@ function COMPASS_PINS.AddCustomPin(pinType, pinCallback, layout)
 end
 
 -- creates a pin of the given pinType at the given location
-function COMPASS_PINS.CreatePin(pinType, pinTag, xLoc, yLoc)
+function COMPASS_PINS:CreatePin(pinType, pinTag, xLoc, yLoc)
 	if not COMPASS_PINS.pinTables[pinType] then return end
 	
 	local data = {}
@@ -133,15 +139,15 @@ function COMPASS_PINS.CreatePin(pinType, pinTag, xLoc, yLoc)
 	data.pinType = pinType or "NoType"
 	data.pinTag = pinTag or {}
 	
-	COMPASS_PINS.RemovePin(data.pinTag, data.pinType) -- added in 1.29
+	COMPASS_PINS:RemovePin(data.pinTag, data.pinType) -- added in 1.29
 	-- some addons add new compass pins outside of this libraries callback
 	-- function. in such a case the old pins haven't been removed yet and get stuck
 	-- see destinations comment section 03/19/16 (uladz) and newer
 	
 	local layout = COMPASS_PINS.pinLayouts[pinType]
-	local xCell = zo_floor(x * COMPASS_PINS.mapMeasurement.scaleX / layout.maxDistance)
-	local yCell = zo_floor(y * COMPASS_PINS.mapMeasurement.scaleY / layout.maxDistance)
-	
+	local xCell = zo_floor(xLoc * COMPASS_PINS.mapMeasurement.scaleX / layout.maxDistance)
+	local yCell = zo_floor(yLoc * COMPASS_PINS.mapMeasurement.scaleY / layout.maxDistance)
+
 	COMPASS_PINS.pinTables[pinType][xCell] = COMPASS_PINS.pinTables[pinType][xCell] or {}
 	COMPASS_PINS.pinTables[pinType][xCell][yCell] = COMPASS_PINS.pinTables[pinType][xCell][yCell] or {}
 	COMPASS_PINS.pinTables[pinType][xCell][yCell][pinTag] = data
@@ -150,7 +156,7 @@ end
 -- removes the pin with the given pinTag
 -- the function is faster when the pinType is given as well
 -- returns true if the pin was deleted and false if the pin didn't exist in the first place
-function COMPASS_PINS.RemovePin(pinTag, pinType)
+function COMPASS_PINS:RemovePin(pinTag, pinType)
 	if pinType then
 		if not COMPASS_PINS.pinTables[pinType] then return false end
 		for _, yCells in pairs(COMPASS_PINS.pinTables[pinType]) do
@@ -169,7 +175,7 @@ function COMPASS_PINS.RemovePin(pinTag, pinType)
 		return false
 	end
 	for pinType, _ in pairs(COMPASS_PINS.pinTables) do
-		if COMPASS_PINS.RemovePin(pinTag, pinType) then
+		if COMPASS_PINS:RemovePin(pinTag, pinType) then
 			return true
 		end
 	end
@@ -178,7 +184,7 @@ end
 
 -- removes all pins of the given pinType
 -- if no pinType is given, all pins are removed
-function COMPASS_PINS.RemovePins(pinType)
+function COMPASS_PINS:RemovePins(pinType)
 	if not pinType then
 		COMPASS_PINS.pinControlPool:ReleaseAllObjects()
 		COMPASS_PINS.visiblePins = {}
@@ -186,14 +192,18 @@ function COMPASS_PINS.RemovePins(pinType)
 			COMPASS_PINS.pinTables[pinType] = {}
 		end
 	else
-		local pins = COMPASS_PINS.pinTables[pinType]
-		if not pins then return end
-		for pinTag, pinData in pairs(pins) do
-			if pinData.pinKey then
-				COMPASS_PINS.pinControlPool:ReleaseObject(pinData.pinKey)
+		local xCells = COMPASS_PINS.pinTables[pinType]
+		if not yCells then return end
+		for _, yCells in pairs(xCells) do
+			for _, cell in pairs(yCells) do
+				for pinTag, pinData in pairs(cell) do
+					if pinData.pinKey then
+						COMPASS_PINS.pinControlPool:ReleaseObject(pinData.pinKey)
+					end
+					COMPASS_PINS.visiblePins[pinTag] = nil
+					cell[pinTag] = nil
+				end
 			end
-			COMPASS_PINS.visiblePins[pinTag] = nil
-			pins[pinTag] = nil
 		end
 	end
 end
@@ -201,7 +211,7 @@ end
 -- refreshes all pins of the given pinType or all pins, if no pinType is given.
 -- refresh means: all pins are deleted and the pinType's callback functions are called to create new pins
 -- however the refresh will be delayed if the worldmap is currently open
-function COMPASS_PINS.RefreshPins(pinType)
+function COMPASS_PINS:RefreshPins(pinType)
 	-- only refresh pins if the map is closed
 	if not ZO_WorldMap:IsHidden() then
 		-- if the map is open, delay the refresh until the map is closed
@@ -220,9 +230,18 @@ function COMPASS_PINS.RefreshPins(pinType)
 	else
 		COMPASS_PINS.needsRefresh = {}
 	end
-	
+
+	-- maybe the distance setting changed
+	if pinType then
+		local layout = COMPASS_PINS.pinLayouts[pinType]
+		layout.maxDistance2 = layout.maxDistance * layout.maxDistance
+	else
+		for _, layout in pairs(COMPASS_PINS.pinLayouts) do
+			layout.maxDistance2 = layout.maxDistance * layout.maxDistance
+		end
+	end
 	-- remove the old pins...
-	COMPASS_PINS.RemovePins(pinType)
+	COMPASS_PINS:RemovePins(pinType)
 	-- ...and call the callback functions to get new pins
 	if pinType then
 		if not COMPASS_PINS.pinCallbacks[pinType] then
@@ -264,8 +283,7 @@ function COMPASS_PINS.Update()
 	local x, y = GetMapPlayerPosition("player")
 	local frameTime = GetFrameTimeMilliseconds()
 	-- now check if there are pins that should newly appear on the compass
-	local t = COMPASS_PINS.mapMeasurement.scaleX
-	local xCell, yCell, yCells, cells
+	local xCell, yCell, yCells, cells, layout
 	for pinType, pinCells in pairs(COMPASS_PINS.pinTables) do
 		layout = COMPASS_PINS.pinLayouts[pinType]
 		xCell = zo_floor(x * COMPASS_PINS.mapMeasurement.scaleX / layout.maxDistance)
@@ -323,7 +341,7 @@ function COMPASS_PINS.UpdatePin(x, y, heading, pinTag, pinData, layout)
 		angle = angle + 2 * pi
 	end
 	-- normalize the angle to [-1, 1] where (-/+) 1 is the left/right edge of the compass
-	normalizedAngle = 2 * angle / (layout.FOV or COMPASS_PINS.defaultFOV)
+	local normalizedAngle = 2 * angle / (layout.FOV or COMPASS_PINS.defaultFOV)
 	-- check if the bin is outside the FOV
 	if zo_abs(normalizedAngle) > 1 then
 		if pinData.pinKey then
@@ -338,7 +356,7 @@ function COMPASS_PINS.UpdatePin(x, y, heading, pinTag, pinData, layout)
 	if pinData.pinKey then
 		pinControl = COMPASS_PINS.pinControlPool:GetExistingObject(pinData.pinKey)
 	else
-		pinControl, pinData.pinKey = COMPASS_PINS.pinControlPool:GetNewPin(pinData)
+		pinControl = COMPASS_PINS.GetNewPinControl(pinData)
 		COMPASS_PINS.visiblePins[pinTag] = pinData
 	end
 	pinControl:ClearAnchors()
@@ -364,6 +382,7 @@ end
 
 function COMPASS_PINS.GetNewPinControl(data)
 	local pin, pinKey = COMPASS_PINS.pinControlPool:AcquireObject()
+	data.pinKey = pinKey
 	COMPASS_PINS.ResetPin(pin)
 	pin:SetHandler("OnMouseDown", nil)
 	pin:SetHandler("OnMouseUp", nil)

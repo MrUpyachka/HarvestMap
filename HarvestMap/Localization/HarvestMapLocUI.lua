@@ -105,6 +105,9 @@ local allLocalizations = {
 		["openesoui"] = "Open ESOUI",
 		["mergedescription"] = "You can download the most recent HarvestMap data (positions of ressources) on teso-harvest-merge.de",
 		["openmerge"] = "Open Harvest Merge",
+
+		["maxcachedmaps"] = "Maximum number of cached maps",
+		["maxcachedmapstooltip"] = "HarvestMap will keep the nodes of previously viewed maps in memory to display them faster when viewing thos maps again. However keeping the data in memory can negatively impact the game's performance.",
 	},
 	["de"] = {
 		["pintype1"] = "Schmied Pins",
@@ -158,7 +161,7 @@ local allLocalizations = {
 		["accountwarning"] = "Wenn diese Einstellung geändert wird, wird das Interface neu geladen und es kommt zu einem Ladebildschirm.",
 		["hiddentime"] = "Respawn Timer",
 		["hiddentimetooltip"] = "Vor kurzem besuche Pins werden für X minuten von der Karte und dem Kompass versteckt. Ist dieser Wert 0, so werden die Pins niemals versteckt.",
-		["hiddentimewarning"] = "Setze diesen Wert auf 0 um die Performanz zu verbessern.",
+		["hiddentimewarning"] = "Setze diesen Wert auf 0, um die Performanz zu verbessern.",
 		["hiddenonharvest"] = "Erntespezifischer Respawn Timer",
 		["hiddenonharvesttooltip"] = "Aktiviere diese Einstellung um Pins nur zu verstecken, wenn du an ihrer Position etwas geerntet hast.\nWenn deaktiviert werden Pins bereits beim Besuchen versteckt.",
 		["exactitem"] = "Zeige nur entdeckte Ressourcen",
@@ -194,6 +197,9 @@ local allLocalizations = {
 		["openesoui"] = zo_strupper("ö").."ffne ESOUI",
 		["mergedescription"] = "Du kannst aktuelle HarvestMap Daten (Positionen der Rohstoffe) auf\nteso-harvest-merge.de herunterladen.",
 		["openmerge"] = zo_strupper("ö").."ffne Harvest Merge",
+
+		["maxcachedmaps"] = "Maximale Anzahl Karten im Cache",
+		["maxcachedmapstooltip"] = "HarvestMap hält die Erntepunkte vorher betrachteter Karten im Arbeitsspeicher, um diese Karten bei erneutem betrachten schneller laden zu können. Der erhöhte Speicherbedarf kann aber die Performanz negativ beeinflussen.",
 	},
 	["fr"] = { --translation based on wookiefrag's input.
 		["pintype1"] = "Gisements Pins",
