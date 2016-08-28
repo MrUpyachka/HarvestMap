@@ -154,10 +154,29 @@ end
 
 -- removes the pin with the given pinTag
 -- the function is faster when the pinType is given as well
+-- giving the position of the pin will speed up the deletion even further
 -- returns true if the pin was deleted and false if the pin didn't exist in the first place
-function COMPASS_PINS:RemovePin(pinTag, pinType)
+function COMPASS_PINS:RemovePin(pinTag, pinType, x, y)
 	if pinType then
 		if not COMPASS_PINS.pinTables[pinType] then return false end
+		if x and y then
+			x = zo_floor(xLoc * COMPASS_PINS.mapMeasurement.scaleX / layout.maxDistance)
+			y = zo_floor(yLoc * COMPASS_PINS.mapMeasurement.scaleY / layout.maxDistance)
+			local cell = COMPASS_PINS.pinTables[pinType][x]
+			if cell then
+				cell = cell[y]
+				local pinData = cell[pinTag]
+				if pinData then
+					if pinData.pinKey then
+						COMPASS_PINS.pinControlPool:ReleaseObject(pinData.pinKey)
+					end
+					cell[pinTag] = nil
+					COMPASS_PINS.visiblePins[pinTag] = nil
+					return true
+				end
+			end
+			return false
+		end
 		for _, yCells in pairs(COMPASS_PINS.pinTables[pinType]) do
 			for _, pins in pairs(yCells) do
 				local pinData = pins[pinTag]
@@ -192,7 +211,7 @@ function COMPASS_PINS:RemovePins(pinType)
 		end
 	else
 		local xCells = COMPASS_PINS.pinTables[pinType]
-		if not yCells then return end
+		if not xCells then return end
 		for _, yCells in pairs(xCells) do
 			for _, cell in pairs(yCells) do
 				for pinTag, pinData in pairs(cell) do
