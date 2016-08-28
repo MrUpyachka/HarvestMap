@@ -1,0 +1,7 @@
+## Title: HarvestMap-AD-Zones
+## Author: Shinni
+## Version: 3.3.1
+## APIVersion: 100016 100015
+## SavedVariables: HarvestAD_SavedVars
+
+HarvestMapAD.lua

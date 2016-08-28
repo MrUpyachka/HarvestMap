@@ -1,0 +1,68 @@
+<GuiXml>
+	<Controls>
+		<Line name="HarvestLink" thickness="8" virtual="true"/>
+		<Texture name="HM_MapTile" textureFile="HarvestMap/Textures/undiscovered.dds" level="2" layer="0" virtual="true" />
+		<TopLevelControl name="HarvestFarmControl" inherits="ZO_WorldMapInfoContent" >
+			<Controls>
+				<Control name="$(parent)Pane" inherits="ZO_ScrollContainer">
+					<Anchor point="TOPLEFT" offsetX="20"/>
+					<Anchor point="BOTTOMRIGHT"/>
+				</Control>
+			</Controls>
+		</TopLevelControl>
+		<TopLevelControl name="HarvestFarmCompass" mouseEnabled="true" movable="true" hidden="true">
+			<Anchor point="TOPLEFT" offsetX="0" offsetY="0" />
+			<Dimensions x="180" y="200"/>
+			<Controls>
+				<Backdrop name="$(parent)BG" inherits="ZO_DefaultBackdrop" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)" relativePoint="TOPLEFT" offsetX="0" offsetY="0" />
+					<Anchor point="BOTTOMRIGHT" relativeTo="$(parent)" relativePoint="BOTTOMRIGHT" offsetX="0" offsetY="0" />
+				</Backdrop>
+				<Button name="$(parent)Close" text="Close" inherits="ZO_CloseButton" >
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)"  relativePoint="TOPRIGHT" offsetX="-4" offsetY="4" />
+					<OnClicked>
+						Harvest.SetFarmingInterfaceHidden(true)
+						HarvestFarm.interfaceCheckbox:UpdateValue()
+					</OnClicked>
+				</Button>
+				
+				<Texture name="$(parent)Arrow" textureFile="HarvestMap/Textures/Arrow/arrow.dds" >
+					<Anchor point="BOTTOM" relativeTo="$(parent)" relativePoint="TOP" offsetX="0" offsetY="64" />
+					<Dimensions x="180" y="180"/>
+				</Texture>
+				
+				<Label name="$(parent)DistanceText" text="Distance to the next ressource:" font="ZoFontGame" color="FFFFFF" horizontalAlignment="LEFT" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)" relativePoint="TOPLEFT" offsetX="16" offsetY="20" />
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)" relativePoint="TOPRIGHT" offsetX="-16" offsetY="20" />
+				</Label>
+				<Label name="$(parent)Distance" font="ZoFontGame" color="FFFFFF" text="asd" horizontalAlignment="RIGHT" >
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)DistanceText"  relativePoint="BOTTOMRIGHT" offsetX="-2" offsetY="0" />
+				</Label>
+				
+				<Label name="$(parent)StatsText" text="Nodes per minute:" font="ZoFontGame" color="FFFFFF" horizontalAlignment="LEFT" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)DistanceText" relativePoint="BOTTOMLEFT" offsetX="0" offsetY="24" />
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)DistanceText" relativePoint="BOTTOMRIGHT" offsetX="0" offsetY="24" />
+				</Label>
+				<Label name="$(parent)Stats" font="ZoFontGame" color="FFFFFF" text="123.23" horizontalAlignment="RIGHT" >
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)StatsText"  relativePoint="BOTTOMRIGHT" offsetX="-2" offsetY="0" />
+				</Label>
+				
+				<Button name="$(parent)ArrowCheckButton" inherits="ZO_CheckButton" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)StatsText"  relativePoint="BOTTOMLEFT" offsetX="0" offsetY="24" />
+				</Button>
+				<Label name="$(parent)ArrowCheckText" font="ZoFontGame" color="FFFFFF" text="Show Arrow" horizontalAlignment="LEFT" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)ArrowCheckButton"  relativePoint="TOPRIGHT" offsetX="4" offsetY="-2" />
+				</Label>
+				
+				
+				<Button name="$(parent)SkipNodeButton" text="Skip current target" inherits="ZO_DefaultButton" >
+					<Anchor point="TOPLEFT" relativeTo="$(parent)ArrowCheckButton"  relativePoint="BOTTOMLEFT" offsetX="0" offsetY="8" />
+					<Anchor point="TOPRIGHT" relativeTo="$(parent)ArrowCheckButton"  relativePoint="BOTTOMLEFT" offsetX="148" offsetY="8" />
+					<OnClicked>
+						HarvestFarm.UpdateToNextTarget()
+					</OnClicked>
+				</Button>
+			</Controls>
+		</TopLevelControl>
+	</Controls>
+</GuiXml>
