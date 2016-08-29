@@ -18,6 +18,34 @@ local pairs = _G["pairs"]
 local tostring = _G["tostring"]
 local zo_floor = _G["zo_floor"]
 
+
+---
+-- Function-adapter to invoke RefreshPins for all used pins controllers.
+-- @param pinTypeId type ID of pins to refresh.
+--
+local function RefreshPinsInAllControllers(pinTypeId)
+	LMP:RefreshPins(Harvest.GetPinType(pinTypeId))
+	COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
+end
+---
+-- Function-adapter to invoke pin deletion for all used pins controllers.
+-- @param pinTypeId type ID of pin.
+-- @param node node to identify existing pin.
+--
+local function RemovePinInAllControllers(pinType, nodeData)
+	LMP:RemoveCustomPin(pinType, nodeData)
+	COMPASS_PINS:RemovePin(nodeData, pinType, nodeData[Harvest.X], nodeData[Harvest.Y])
+end
+---
+-- Function-adapter to invoke pin creation for all used pins controllers.
+-- @param pinTypeId type ID of pin.
+-- @param nodeData data to fill pin properties.
+--
+local function CreatePinInAllControllers(pinType, nodeData)
+	LMP:CreatePin(pinType, nodeData, nodeData[Harvest.X], nodeData[Harvest.Y])
+	COMPASS_PINS:CreatePin(pinType, nodeData, nodeData[Harvest.X], nodeData[Harvest.Y])
+end
+
 -- returns informations regarding the current location
 -- if viewedMap is true, the data is relative to the currently viewed map
 -- otherwise the data is related to the map the player is currently on
@@ -289,15 +317,13 @@ function Harvest.RefreshPins( pinTypeId )
 	-- refresh all pins if no pin type was given
 	if not pinTypeId then
 		for _, pinTypeId in pairs(Harvest.PINTYPES ) do
-			LMP:RefreshPins( Harvest.GetPinType( pinTypeId ) )
-			COMPASS_PINS:RefreshPins( Harvest.GetPinType( pinTypeId ) )
+			RefreshPinsInAllControllers(pinTypeId)
 		end
 		return
 	end
 	-- refresh only the pins of the given pin type
 	if Harvest.contains( Harvest.PINTYPES, pinTypeId ) then
-		LMP:RefreshPins( Harvest.GetPinType( pinTypeId ) )
-		COMPASS_PINS:RefreshPins( Harvest.GetPinType( pinTypeId ) )
+		RefreshPinsInAllControllers(pinTypeId)
 	end
 end
 
@@ -312,21 +338,32 @@ function Harvest.contains( table, value)
 	return false
 end
 
+---
+-- Returns squared distance between point [x1,y1] and [x2,y2].
+-- @param x1 abscissa of first point.
+-- @param y1 ordinate of first point.
+-- @param x2 abscissa of second point.
+-- @param y2 ordinate of second point.
+--
+local function calculateDistanceSquare(x1, y1, x2, y2) -- TODO move math calculations to separate module
+	local dx = x2 - x1
+	local dy = y2 - y1
+	return dx * dx + dy * dy
+end
+
 -- checks if there is a node in the given nodes list which is close to the given coordinates
 -- returns the index of the close node if one is found
 function Harvest.IsNodeAlreadyFound( nodes, x, y )
 	local minDistance = Harvest.GetMinDistanceBetweenPins()
 	local dx, dy
 	for index, node in pairs( nodes ) do
-		dx = node[Harvest.X] - x
-		dy = node[Harvest.Y] - y
 		-- distance is sqrt(dx * dx + dy * dy) but for performance we compare the squared values
-		if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
+		local distance = calculateDistanceSquare(x, y, node[Harvest.X], node[Harvest.Y])
+		if distance < minDistance then -- the new node is too close to an old one, it's probably a duplicate
 			return index
 		end
-
 	end
-	return nil
+	return nil -- node not found. Better to name this function getNearestNode(..). Is* means boolean result.
 end
 
 -- same as IsNodeAlreadyFound but this one also checks the global distance
@@ -344,14 +381,12 @@ function Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 				division = divisions[divY+j]
 				if division then
 					for index, node in pairs( division ) do
-						dx = node.data[Harvest.X] - x
-						dy = node.data[Harvest.Y] - y
-						if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
+						local distance = calculateDistanceSquare(x, y, node.data[Harvest.X], node.data[Harvest.Y])
+						if distance < minDistance then -- the new node is too close to an old one, it's probably a duplicate
 							return divX+i, divY+j, index
 						end
-						dx = node.global[Harvest.X] - globalX
-						dy = node.global[Harvest.Y] - globalY
-						if dx * dx + dy * dy < globalMinDistance then
+						local globalDistance = calculateDistanceSquare(x, y, node.global[Harvest.X], node.global[Harvest.Y])
+						if globalDistance < globalMinDistance then
 							return divX+i, divY+j, index
 						end
 					end
@@ -385,8 +420,6 @@ local function mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
 
 	-- update the pins position and version
 	-- the old position could be outdated while the new one was just confirmed to be correct
-	-- TODO check that its really needed. Seems that there is an calculation error
-	-- which depends on the relative position of the player to the object
 	nodeData[Harvest.TIME] = stamp
 	nodeData[Harvest.X] = x
 	nodeData[Harvest.Y] = y
@@ -403,6 +436,7 @@ end
 -- @param y ordinate of update event.
 -- @param measurement data of event.
 -- @param nodeData data for new node.
+-- @return created node.
 --
 local function addNodeData(nodes, index, x, y, measurement, nodeData)
 	-- the new nodes needs to be saved at the same index in both tables.
@@ -412,10 +446,45 @@ local function addNodeData(nodes, index, x, y, measurement, nodeData)
 	nodes[divisionX] = nodes[divisionX] or {}
 	nodes[divisionX][divisionY] = nodes[divisionX][divisionY] or {}
 	-- saving the node in deserialized form
-	nodes[divisionX][divisionY][index] = { data = nodeData,
+	local node = { data = nodeData,
 		time = GetFrameTimeSeconds(), -- time for the respawn timer
 		global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
+	nodes[divisionX][divisionY][index] = node
+	return node
+end
 
+---
+-- Validates input data of any pin update event.
+-- @param map
+-- @param x
+-- @param y
+-- @param measurement
+-- @param pinTypeId
+-- @param itemId
+-- @return true for valid data, false for empty or values with wrong format.
+--
+local function validatePinData(map, x, y, measurement, pinTypeId, itemId)
+	if not map then
+		Harvest.Debug("Validation of data failed: map is nil")
+		return
+	end
+	if type(x) ~= "number" or type(y) ~= "number" then
+		Harvest.Debug("Validation of data failed: coordinates aren't numbers")
+		return
+	end
+	if not measurement then
+		Harvest.Debug("Validation of data failed: measurement is nil")
+		return
+	end
+	if not pinTypeId then
+		Harvest.Debug("Validation of data failed: pin type id is nil")
+		return
+	end
+	-- If the map is on the blacklist then don't save the data
+	if Harvest.IsMapBlacklisted(map) then
+		Harvest.Debug("Validation of data failed: map " .. tostring(map) .. " is blacklisted")
+		return
+	end
 end
 
 -- this function tries to save the given data
@@ -426,32 +495,13 @@ end
 --   nodeUpdated - true if data of existing node updated, false in opposite case.
 -- }
 function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
-	-- check input data
-	if not map then
-		Harvest.Debug( "SaveData failed: map is nil" )
-		return
-	end
-	if type(x) ~= "number" or type(y) ~= "number" then
-		Harvest.Debug( "SaveData failed: coordinates aren't numbers" )
-		return
-	end
-	if not measurement then
-		Harvest.Debug( "SaveData failed: measurement is nil" )
-		return
-	end
-	if not pinTypeId then
-		Harvest.Debug( "SaveData failed: pin type id is nil" )
-		return
-	end
-	-- If the map is on the blacklist then don't save the data
-	if Harvest.IsMapBlacklisted( map ) then
-		Harvest.Debug( "SaveData failed: map " .. tostring(map) .. " is blacklisted" )
-		return
-	end
-
 	Harvest.Debug( "Try to save data for pin of type " ..  pinTypeId)
+	-- check input data
+	validatePinData(map, x, y, measurement, pinTypeId, itemId)
+
 	local saveFile = Harvest.GetSaveFile( map )
 	if not saveFile then return end
+
 	-- save file tables might not exist yet
 	saveFile.data[ map ] = saveFile.data[ map ] or {}
 	saveFile.data[ map ][ pinTypeId ] = saveFile.data[ map ][ pinTypeId ] or {}
@@ -469,10 +519,13 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	if index then
 		local node = nodes[ divisionX ][ divisionY ][ index ]
 
-		LMP:RemoveCustomPin( pinType, node.data )
-		COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
+		RemovePinInAllControllers(pinType, node.data)
+
+		nodeUpdated = mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
+		nodeData = node.data -- to store it in common way
 
 		-- don't redraw the pin, if the respawn timer is used for recently harvested ressources
+		-- TODO Hide of pin inside save function looks tricky
 		if Harvest.IsHiddenOnHarvest() then
 			if not node.hidden then
 				local pinType = Harvest.GetPinType( pinTypeId )
@@ -482,11 +535,10 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 			end
 			node.time = GetFrameTimeSeconds()
 		else
-			LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-			COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+			CreatePinInAllControllers(pinType, nodeData)
 		end
-		nodeUpdated = mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
-		nodeData = node.data -- to store it in common way
+
+
 	else
 		-- index for new node.
 		index = #(saveFile.data[ map ][ pinTypeId ]) + 1
@@ -498,7 +550,9 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 			itemIds = { [itemId] = stamp }
 		end
 
-		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), node.data )
+		nodeData = { x, y, nil, itemIds, stamp, Harvest.nodeVersion }
+
+		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), nodeData ) -- FIXME possible bug here. What we want to remove?
 
 	end
 
@@ -508,8 +562,9 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	if nodeAdded then
 		-- No any pin - save in runtime data and display on map.
 		addNodeData(nodes, index, x, y, measurement, nodeData)
-		LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-		COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+		CreatePinInAllControllers(pinType, nodeData)
+		LMP:CreatePin( pinType, nodeData, nodeData[Harvest.X], nodeData[Harvest.Y] )
+		COMPASS_PINS:CreatePin( pinType, nodeData, nodeData[Harvest.X], nodeData[Harvest.Y] )
 	end
 
 	if nodeAdded then
@@ -545,6 +600,7 @@ end
 function Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
 	local nodeAdded, nodeUpdated = Harvest.SaveData( map, x, y, measurement, pinTypeId )
 	if nodeAdded or nodeUpdated or isMapAddonCompatibilityRequired() then
+		-- TODO remove direct calls of refreshPins.
 		Harvest.RefreshPins( pinTypeId )
 	end
 end
@@ -691,15 +747,15 @@ function Harvest.UpdateHiddenTime(time)
 						division = divisions[divisionY+j]
 						if division then
 							for _, node in pairs(division) do
-								dx = x - node.data[Harvest.X]
-								dy = y - node.data[Harvest.Y]
-								if (not onHarvest) and dx * dx + dy * dy < minDistance then
+								local nodeX = node.data[Harvest.X]
+								local nodeY = node.data[Harvest.Y]
+								local distance = calculateDistanceSquare(x, y, nodeX, nodeY)
+								if (not onHarvest) and distance < minDistance then
 									-- the player is close to the pin
 									-- now check if it has a pin
 									if not node.hidden then
 										Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-										LMP:RemoveCustomPin( pinType, node.data )
-										COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
+										RemovePinInAllControllers(pinType, node.data)
 										node.hidden = true
 									end
 									node.time = time
@@ -713,8 +769,7 @@ function Harvest.UpdateHiddenTime(time)
 										--	end
 										--end
 										Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
-										LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-										COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+										CreatePinInAllControllers(pinType, node.data)
 										node.hidden = false
 									end
 								end
