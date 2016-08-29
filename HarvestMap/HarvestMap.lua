@@ -534,9 +534,6 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		end
 
 		nodeData = { x, y, nil, itemIds, stamp, Harvest.nodeVersion }
-
-		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), nodeData ) -- FIXME possible bug here. What we want to remove?
-
 	end
 
 	-- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
