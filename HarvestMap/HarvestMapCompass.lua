@@ -75,7 +75,7 @@ function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, i
 			return
 		end
 		if time - node.time > hiddenTime then
-			g_mapPinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+			g_mapPinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y], true )
 		end
 	end
 	--if Harvest.HasPinVisibleDistance() then

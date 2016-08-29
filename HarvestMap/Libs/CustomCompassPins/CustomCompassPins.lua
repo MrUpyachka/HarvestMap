@@ -129,7 +129,7 @@ function COMPASS_PINS:AddCustomPin(pinType, pinCallback, layout)
 end
 
 -- creates a pin of the given pinType at the given location
-function COMPASS_PINS:CreatePin(pinType, pinTag, xLoc, yLoc)
+function COMPASS_PINS:CreatePin(pinType, pinTag, xLoc, yLoc, skipDeletion)
 	if not COMPASS_PINS.pinTables[pinType] then return end
 	
 	local data = {}
@@ -137,12 +137,14 @@ function COMPASS_PINS:CreatePin(pinType, pinTag, xLoc, yLoc)
 	data.yLoc = yLoc or 0
 	data.pinType = pinType or "NoType"
 	data.pinTag = pinTag or {}
-	
-	COMPASS_PINS:RemovePin(data.pinTag, data.pinType) -- added in 1.29
-	-- some addons add new compass pins outside of this libraries callback
-	-- function. in such a case the old pins haven't been removed yet and get stuck
-	-- see destinations comment section 03/19/16 (uladz) and newer
-	
+
+	if not skipDeletion then
+		COMPASS_PINS:RemovePin(data.pinTag, data.pinType) -- added in 1.29
+		-- some addons add new compass pins outside of this libraries callback
+		-- function. in such a case the old pins sometimes haven't been removed yet and get stuck
+		-- see destinations comment section 03/19/16 (uladz) and newer
+	end
+
 	local layout = COMPASS_PINS.pinLayouts[pinType]
 	local xCell = zo_floor(xLoc * COMPASS_PINS.mapMeasurement.scaleX / layout.maxDistance)
 	local yCell = zo_floor(yLoc * COMPASS_PINS.mapMeasurement.scaleY / layout.maxDistance)
@@ -415,7 +417,11 @@ function COMPASS_PINS.GetNewPinControl(data)
 
 	local layout = COMPASS_PINS.pinLayouts[data.pinType]
 	local texture = pin:GetNamedChild("Background")
-	texture:SetTexture(layout.texture)
+	if type(layout.texture) == "string" then
+		texture:SetTexture(layout.texture)
+	else
+		texture:SetTexture(layout.texture(data.pinTag))
+	end
 
 	return pin, pinKey
 end

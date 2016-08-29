@@ -252,7 +252,7 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		pinTypeId = Harvest.JUSTICE
 	end
 
-	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
+	Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
 	HarvestFarm.FarmedANode(objectName, stackCount)
 end
 
@@ -483,7 +483,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 			node.time = GetFrameTimeSeconds()
 		else
 			LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-			COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+			COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y], true )
 		end
 		nodeUpdated = mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
 		nodeData = node.data -- to store it in common way
@@ -497,9 +497,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		if Harvest.ShouldSaveItemId( pinTypeId ) then
 			itemIds = { [itemId] = stamp }
 		end
-
-		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), node.data )
-
+		nodeData = { x, y, nil, itemIds, stamp, Harvest.nodeVersion }
 	end
 
 	-- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
@@ -509,7 +507,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		-- No any pin - save in runtime data and display on map.
 		addNodeData(nodes, index, x, y, measurement, nodeData)
 		LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-		COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+		COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y], true )
 	end
 
 	if nodeAdded then
@@ -520,7 +518,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		Harvest.Debug( "data processed, no any updates required" )
 	end
 
-	return { nodeAdded, nodeUpdated }
+	return nodeAdded, nodeUpdated
 end
 
 ---
@@ -544,7 +542,9 @@ end
 --
 function Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
 	local nodeAdded, nodeUpdated = Harvest.SaveData( map, x, y, measurement, pinTypeId )
-	if nodeAdded or nodeUpdated or isMapAddonCompatibilityRequired() then
+	-- if a minimap is loaded, we have to refresh all pins
+	-- otherwise the (re-)creation of the new/updates node is enough
+	if (nodeAdded or nodeUpdated) and isMapAddonCompatibilityRequired() then
 		Harvest.RefreshPins( pinTypeId )
 	end
 end
