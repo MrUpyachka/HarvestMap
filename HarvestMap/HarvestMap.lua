@@ -36,6 +36,7 @@ local function RemovePinInAllControllers(pinType, nodeData)
 	LMP:RemoveCustomPin(pinType, nodeData)
 	COMPASS_PINS:RemovePin(nodeData, pinType, nodeData[Harvest.X], nodeData[Harvest.Y])
 end
+
 ---
 -- Function-adapter to invoke pin creation for all used pins controllers.
 -- @param pinTypeId type ID of pin.
@@ -251,8 +252,8 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		end
 	end
 	-- get the information we want to save
-	local itemName, itemId
-	local pinTypeId = nil
+	local itemName, itemId, _
+	local pinTypeId
 	if not isHeist then
 		itemName, _, _, itemId = ZO_LinkHandler_ParseLink( objectName )
 		itemId = tonumber(itemId)
@@ -280,7 +281,7 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		pinTypeId = Harvest.JUSTICE
 	end
 
-	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
+	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId ) -- TODO check this call and investigate required actions. ProcessData?
 	HarvestFarm.FarmedANode(objectName, stackCount)
 end
 
@@ -339,31 +340,22 @@ function Harvest.contains( table, value)
 end
 
 ---
--- Returns squared distance between point [x1,y1] and [x2,y2].
--- @param x1 abscissa of first point.
--- @param y1 ordinate of first point.
--- @param x2 abscissa of second point.
--- @param y2 ordinate of second point.
---
-local function calculateDistanceSquare(x1, y1, x2, y2) -- TODO move math calculations to separate module
-	local dx = x2 - x1
-	local dy = y2 - y1
-	return dx * dx + dy * dy
-end
-
--- checks if there is a node in the given nodes list which is close to the given coordinates
--- returns the index of the close node if one is found
-function Harvest.IsNodeAlreadyFound( nodes, x, y )
+-- Checks if there is a node in the given nodes list which is close to the given coordinates.
+-- @return the index of the close node if one is found, nil in opposite case.
+function Harvest.GetNearestNodeIndex( nodes, x, y )
 	local minDistance = Harvest.GetMinDistanceBetweenPins()
 	local dx, dy
+	-- node represents a raw list of data, not an table.
 	for index, node in pairs( nodes ) do
 		-- distance is sqrt(dx * dx + dy * dy) but for performance we compare the squared values
-		local distance = calculateDistanceSquare(x, y, node[Harvest.X], node[Harvest.Y])
-		if distance < minDistance then -- the new node is too close to an old one, it's probably a duplicate
+		-- Copypaste caused by perfomance optimization
+		dx = node[Harvest.X] - x
+		dy = node[Harvest.Y] - y
+		if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
 			return index
 		end
 	end
-	return nil -- node not found. Better to name this function getNearestNode(..). Is* means boolean result.
+	return nil -- node not found.
 end
 
 -- same as IsNodeAlreadyFound but this one also checks the global distance
@@ -381,12 +373,16 @@ function Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 				division = divisions[divY+j]
 				if division then
 					for index, node in pairs( division ) do
-						local distance = calculateDistanceSquare(x, y, node.data[Harvest.X], node.data[Harvest.Y])
-						if distance < minDistance then -- the new node is too close to an old one, it's probably a duplicate
+						-- Copypaste caused by perfomance optimization
+						dx = node.data[Harvest.X] - x
+						dy = node.data[Harvest.Y] - y
+						if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
 							return divX+i, divY+j, index
 						end
-						local globalDistance = calculateDistanceSquare(x, y, node.global[Harvest.X], node.global[Harvest.Y])
-						if globalDistance < globalMinDistance then
+						-- Copypaste caused by perfomance optimization
+						dx = node.global[Harvest.X] - globalX
+						dy = node.global[Harvest.Y] - globalY
+						if dx * dx + dy * dy < globalMinDistance then
 							return divX+i, divY+j, index
 						end
 					end
@@ -399,7 +395,7 @@ function Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 end
 
 ---
--- Merges data of an existing node with data from update event.
+-- Merges properties of an existing node with data from update event.
 -- @param node existing node
 -- @param x abscissa of update event.
 -- @param y ordinate of update event.
@@ -408,14 +404,13 @@ end
 -- @param itemId  unique id of item from event.
 -- @param stamp event timestamp.
 --
-local function mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
-	local nodeUpdated = false
+local function mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stamp)
+	local nodeUpdated = true -- TODO Rework this. Always updates coordinates.
 	local nodeData = node.data
 	-- update the timestamp of the nodes items
 	if itemId and Harvest.ShouldSaveItemId(pinTypeId) then
 		nodeData[Harvest.ITEMS] = nodeData[Harvest.ITEMS] or {}
 		nodeData[Harvest.ITEMS][itemId] = stamp
-		nodeUpdated = true
 	end
 
 	-- update the pins position and version
@@ -494,6 +489,7 @@ end
 -- @return {
 --   nodeAdded - true if new node detected, false in opposite case.
 --   nodeUpdated - true if data of existing node updated, false in opposite case.
+--   node - updated or created node.
 -- }
 function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	Harvest.Debug( "Try to save data for pin of type " ..  pinTypeId)
@@ -516,30 +512,16 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 
 	-- If we have found this node already then we don't need to save it again
 	local divisionX, divisionY, index = Harvest.ShouldMergeNodes( nodes, x, y, measurement )
+	local node
 	local nodeData
 	if index then
-		local node = nodes[ divisionX ][ divisionY ][ index ]
+		node = nodes[ divisionX ][ divisionY ][ index ]
 
-		RemovePinInAllControllers(pinType, node.data)
+		-- TODO rework this to avoid deletion of pin inside save function.
+		RemovePinInAllControllers(pinType, node.data) -- Remove before merge. While coordinates not changed.
 
-		nodeUpdated = mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
+		nodeUpdated = mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stamp)
 		nodeData = node.data -- to store it in common way
-
-		-- don't redraw the pin, if the respawn timer is used for recently harvested ressources
-		-- TODO Hide of pin inside save function looks tricky
-		if Harvest.IsHiddenOnHarvest() then
-			if not node.hidden then
-				local pinType = Harvest.GetPinType( pinTypeId )
-				-- TODO seems to be better to do this as postponed action.
-				Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-				node.hidden = true
-			end
-			node.time = GetFrameTimeSeconds()
-		else
-			CreatePinInAllControllers(pinType, nodeData)
-		end
-
-
 	else
 		-- index for new node.
 		index = #(saveFile.data[ map ][ pinTypeId ]) + 1
@@ -561,9 +543,8 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	saveFile.data[ map ][ pinTypeId ][index] = Harvest.Serialize( nodeData )
 
 	if nodeAdded then
-		-- No any pin - save in runtime data and display on map.
-		addNodeData(nodes, index, x, y, measurement, nodeData)
-		CreatePinInAllControllers(pinType, nodeData)
+		-- No any pin - save in runtime data.
+		node = addNodeData(nodes, index, x, y, measurement, nodeData)
 	end
 
 	if nodeAdded then
@@ -574,7 +555,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		Harvest.Debug( "data processed, no any updates required" )
 	end
 
-	return { nodeAdded, nodeUpdated }
+	return { nodeAdded, nodeUpdated, node }
 end
 
 ---
@@ -596,8 +577,22 @@ end
 -- @param pinTypeId type of resource from event.
 -- @param itemId unique id of item.
 --
-function Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
-	local nodeAdded, nodeUpdated = Harvest.SaveData( map, x, y, measurement, pinTypeId )
+function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
+	local nodeAdded, nodeUpdated, node = Harvest.SaveData(map, x, y, measurement, pinTypeId)
+	local pinType = Harvest.GetPinType(pinTypeId)
+	if (nodeAdded or nodeUpdated) and Harvest.IsHiddenOnHarvest() then
+		-- If node updated. its pin already removed TODO fix this behavior.\
+		-- don't redraw the pin, if the respawn timer is used for recently harvested ressources
+		if not node.hidden then
+			Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
+			node.hidden = true
+		end
+		Harvest.Debug( "Pin hidden because its harvested just now.")
+		node.time = GetFrameTimeSeconds()
+	elseif (nodeAdded or nodeUpdated) then
+		node.hidden = false
+		CreatePinInAllControllers(pinType, node.data)
+	end
 	if nodeAdded or nodeUpdated or isMapAddonCompatibilityRequired() then
 		-- TODO remove direct calls of refreshPins.
 		Harvest.RefreshPins( pinTypeId )
@@ -746,10 +741,9 @@ function Harvest.UpdateHiddenTime(time)
 						division = divisions[divisionY+j]
 						if division then
 							for _, node in pairs(division) do
-								local nodeX = node.data[Harvest.X]
-								local nodeY = node.data[Harvest.Y]
-								local distance = calculateDistanceSquare(x, y, nodeX, nodeY)
-								if (not onHarvest) and distance < minDistance then
+								dx = x - node.data[Harvest.X]
+								dy = y - node.data[Harvest.Y]
+								if (not onHarvest) and dx * dx + dy * dy < minDistance then
 									-- the player is close to the pin
 									-- now check if it has a pin
 									if not node.hidden then
@@ -834,10 +828,10 @@ function Harvest.ImportFromMap( map, data, target, checkPinType )
 		return
 	end
 	-- the target table contains already a bunch of nodes, so the data has to be merged
-	local targetData = nil
-	local newNode = nil
+	local targetData
+	local newNode
 	local index = 0
-	local oldNode = nil
+	local oldNode
 	local timestamp = Harvest.GetCurrentTimestamp()
 	for _, pinTypeId in pairs( Harvest.PINTYPES ) do
 		if (not checkPinType) or Harvest.IsPinTypeSavedOnImport( pinTypeId ) then
@@ -862,7 +856,7 @@ function Harvest.ImportFromMap( map, data, target, checkPinType )
 						-- If the node is new enough to be saved
 						if (Harvest.GetMaxTimeDifference() == 0) or ((timestamp - (newNode[Harvest.TIME] or 0)) <= Harvest.GetMaxTimeDifference()) then
 							-- If we have found this node already then we don't need to save it again
-							index = Harvest.IsNodeAlreadyFound( targetData, newNode[Harvest.X], newNode[Harvest.Y] )
+							index = Harvest.GetNearestNodeIndex( targetData, newNode[Harvest.X], newNode[Harvest.Y] )
 							if index then
 								oldNode = targetData[ index ]
 								-- add the node's item ids
