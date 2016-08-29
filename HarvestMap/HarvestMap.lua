@@ -130,7 +130,7 @@ ZO_Dialogs_RegisterCustomDialog("DESERIALIZE_ERROR", deserializeDialog)
 function Harvest.Deserialize(data)
 	local success, result = AS:Deserialize(data)
 	--  it seems some bug in HarvestMerge deleted the x or y coordinates
-	if success and Harvest.IsNodeValid(result) then 
+	if success and Harvest.IsNodeValid(result) then
 		return result
 	else
 		if Harvest.AreDebugMessagesEnabled() then
@@ -202,12 +202,12 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		Harvest.Debug( "OnLootReceived failed: HarvestMap is updating" )
 		return
 	end
-	
+
 	if not lootedBySelf then
 		Harvest.Debug( "OnLootReceived failed: wasn't looted by self" )
 		return
 	end
-	
+
 	local map, x, y, measurement = Harvest.GetLocation()
 	local isHeist = false
 	-- only save something if we were harvesting or the target is a heavy sack or thieves trove
@@ -251,7 +251,7 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 	else
 		pinTypeId = Harvest.JUSTICE
 	end
-	
+
 	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	HarvestFarm.FarmedANode(objectName, stackCount)
 end
@@ -324,7 +324,7 @@ function Harvest.IsNodeAlreadyFound( nodes, x, y )
 		if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
 			return index
 		end
-		
+
 	end
 	return nil
 end
@@ -359,13 +359,72 @@ function Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 			end
 		end
 	end
-	
+
 	return nil, nil, nil
+end
+
+---
+-- Merges data of an existing node with data from update event.
+-- @param node existing node
+-- @param x abscissa of update event.
+-- @param y ordinate of update event.
+-- @param measurement data of event.
+-- @param pinTypeId type of resource from event.
+-- @param itemId  unique id of item from event.
+-- @param stamp event timestamp.
+--
+local function mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
+	local nodeUpdated = false
+	local nodeData = node.data
+	-- update the timestamp of the nodes items
+	if itemId and Harvest.ShouldSaveItemId(pinTypeId) then
+		nodeData[Harvest.ITEMS] = nodeData[Harvest.ITEMS] or {}
+		nodeData[Harvest.ITEMS][itemId] = stamp
+		nodeUpdated = true
+	end
+
+	-- update the pins position and version
+	-- the old position could be outdated while the new one was just confirmed to be correct
+	-- TODO check that its really needed. Seems that there is an calculation error
+	-- which depends on the relative position of the player to the object
+	nodeData[Harvest.TIME] = stamp
+	nodeData[Harvest.X] = x
+	nodeData[Harvest.Y] = y
+	node.global = { Harvest.LocalToGlobal(x, y, measurement) }
+	nodeData[ Harvest.VERSION ] = Harvest.nodeVersion
+	return nodeUpdated
+end
+
+---
+-- Adds new node to specified collection.
+-- @param nodes collection of nodes.
+-- @param index index for new node.
+-- @param x abscissa of update event.
+-- @param y ordinate of update event.
+-- @param measurement data of event.
+-- @param nodeData data for new node.
+--
+local function addNodeData(nodes, index, x, y, measurement, nodeData)
+	-- the new nodes needs to be saved at the same index in both tables.
+	-- we need to save the data in serialized form in the save file,
+	-- but also as deserialized table in the cache table for faster access.
+	local divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
+	nodes[divisionX] = nodes[divisionX] or {}
+	nodes[divisionX][divisionY] = nodes[divisionX][divisionY] or {}
+	-- saving the node in deserialized form
+	nodes[divisionX][divisionY][index] = { data = nodeData,
+		time = GetFrameTimeSeconds(), -- time for the respawn timer
+		global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
+
 end
 
 -- this function tries to save the given data
 -- this function is only used by the harvesting part of HarvestMap
 -- import and merge features do not use this function
+-- @return {
+--   nodeAdded - true if new node detected, false in opposite case.
+--   nodeUpdated - true if data of existing node updated, false in opposite case.
+-- }
 function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	-- check input data
 	if not map then
@@ -389,19 +448,24 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		Harvest.Debug( "SaveData failed: map " .. tostring(map) .. " is blacklisted" )
 		return
 	end
-	
+
+	Harvest.Debug( "Try to save data for pin of type " ..  pinTypeId)
 	local saveFile = Harvest.GetSaveFile( map )
 	if not saveFile then return end
 	-- save file tables might not exist yet
 	saveFile.data[ map ] = saveFile.data[ map ] or {}
 	saveFile.data[ map ][ pinTypeId ] = saveFile.data[ map ][ pinTypeId ] or {}
-	
+
 	local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
 	local pinType = Harvest.GetPinType( pinTypeId )
 	local stamp = Harvest.GetCurrentTimestamp()
 
+	local nodeAdded = false -- Means that new node detected and saved.
+	local nodeUpdated = false -- Means that an existing node updated with new data.
+
 	-- If we have found this node already then we don't need to save it again
 	local divisionX, divisionY, index = Harvest.ShouldMergeNodes( nodes, x, y, measurement )
+	local nodeData
 	if index then
 		local node = nodes[ divisionX ][ divisionY ][ index ]
 
@@ -412,6 +476,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 		if Harvest.IsHiddenOnHarvest() then
 			if not node.hidden then
 				local pinType = Harvest.GetPinType( pinTypeId )
+				-- TODO seems to be better to do this as postponed action.
 				Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
 				node.hidden = true
 			end
@@ -420,53 +485,68 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 			LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 			COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
 		end
-		
-		-- update the timestamp of the nodes items
-		if Harvest.ShouldSaveItemId(pinTypeId) and itemId then
-			node.data[Harvest.ITEMS] = node.data[Harvest.ITEMS] or {}
-			node.data[Harvest.ITEMS][itemId] = stamp
+		nodeUpdated = mergeNodeData(node, x, y, measurement, pinTypeId, itemId, stamp)
+		nodeData = node.data -- to store it in common way
+	else
+		-- index for new node.
+		index = #(saveFile.data[ map ][ pinTypeId ]) + 1
+		-- no any existing node found. new one should be added.
+		nodeAdded = true
+		local itemIds
+		-- Prepare items ID's list if necessary.
+		if Harvest.ShouldSaveItemId( pinTypeId ) then
+			itemIds = { [itemId] = stamp }
 		end
-		
-		-- update the pins position and version
-		-- the old position could be outdated while the new one was just confirmed to be correct
-		node.data[Harvest.TIME] = stamp
-		node.data[Harvest.X] = x
-		node.data[Harvest.Y] = y
-		node.global = { Harvest.LocalToGlobal(x, y, measurement) }
-		node.data[ Harvest.VERSION ] = Harvest.nodeVersion
-		
-		-- serialize the node for the save file
-		saveFile.data[ map ][ pinTypeId ][ index ] = Harvest.Serialize( node.data )
 
 		LMP:RemoveCustomPin( Harvest.GetPinType( pinTypeId ), node.data )
 
-		Harvest.Debug( "data was merged with a previous node" )
-		return
 	end
-	
-	local itemIds = nil
-	if Harvest.ShouldSaveItemId( pinTypeId ) then
-		itemIds = { [itemId] = stamp }
-	end
-	
-	-- we need to save the data in serialized form in the save file,
-	-- but also as deserialized table in the cache table for faster access.
-	
-	index = #(saveFile.data[ map ][ pinTypeId ]) + 1
-	-- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
-	saveFile.data[ map ][ pinTypeId ][index] = Harvest.Serialize( { x, y, nil, itemIds, stamp, Harvest.nodeVersion } )
-	
-	divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
-	nodes[divisionX] = nodes[divisionX] or {}
-	nodes[divisionX][divisionY] = nodes[divisionX][divisionY] or {}
-	-- saving the node in deserialized form
-	nodes[divisionX][divisionY][index] = { data = { x, y, nil, itemIds, stamp, Harvest.nodeVersion }, -- node data
-	                 time = GetFrameTimeSeconds(), -- time for the respawn timer
-	                 global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
 
-	LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-	COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-	Harvest.Debug( "data was saved and a new pin was created" )
+	-- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
+	saveFile.data[ map ][ pinTypeId ][index] = Harvest.Serialize( nodeData )
+
+	if nodeAdded then
+		-- No any pin - save in runtime data and display on map.
+		addNodeData(nodes, index, x, y, measurement, nodeData)
+		LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+		COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+	end
+
+	if nodeAdded then
+		Harvest.Debug( "data was saved and a new pin was created" )
+	elseif nodeUpdated then
+		Harvest.Debug( "data was merged with a previous node" )
+	else
+		Harvest.Debug( "data processed, no any updates required" )
+	end
+
+	return { nodeAdded, nodeUpdated }
+end
+
+---
+-- Checks any configured map addons.
+-- @return true if any minimap addon detected, false in opposite case.
+local function isMapAddonCompatibilityRequired()
+    -- TODO Other addons
+    if AUI and AUI.Minimap or FyrMM then
+        return true
+    end
+end
+
+---
+-- Checks that update of data required, performs actions for data update and invokes pins refresh if necessary.
+-- @param map current map for processing.
+-- @param x abscissa of update event.
+-- @param y ordinate of update event.
+-- @param measurement data of event.
+-- @param pinTypeId type of resource from event.
+-- @param itemId unique id of item.
+--
+function Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
+	local nodeAdded, nodeUpdated = Harvest.SaveData( map, x, y, measurement, pinTypeId )
+	if nodeAdded or nodeUpdated or isMapAddonCompatibilityRequired() then
+		Harvest.RefreshPins( pinTypeId )
+	end
 end
 
 function Harvest.OnUpdate(time)
@@ -539,16 +619,14 @@ function Harvest.OnUpdate(time)
 					Harvest.Debug( "chests are disabled" )
 					return
 				end
-				Harvest.SaveData( map, x, y, measurement, Harvest.CHESTS )
-				Harvest.RefreshPins( Harvest.CHEST )
+				Harvest.ProcessData( map, x, y, measurement, Harvest.CHESTS )
 			else
 				-- heist chest or safebox
 				if not Harvest.IsPinTypeSavedOnGather( Harvest.JUSTICE ) then
 					Harvest.Debug( "justice containers are disabled" )
 					return
 				end
-				Harvest.SaveData( map, x, y, measurement, Harvest.JUSTICE )
-				Harvest.RefreshPins( Harvest.JUSTICE )
+				Harvest.ProcessData( map, x, y, measurement, Harvest.JUSTICE )
 			end
 		end
 		-- the character started fishing
@@ -559,14 +637,13 @@ function Harvest.OnUpdate(time)
 				return
 			end
 			local map, x, y, measurement = Harvest.GetLocation()
-			Harvest.SaveData( map, x, y, measurement, Harvest.FISHING )
-			Harvest.RefreshPins( Harvest.FISHING )
+			Harvest.ProcessData( map, x, y, measurement, Harvest.FISHING )
 		end
 	end
-	
+
 	-- update the respawn timer feature
 	Harvest.UpdateHiddenTime(time / 1000) -- function was written with seconds in mind instead of miliseconds
-	
+
 	if Harvest.lastDivisionUpdate < time - 5000 and Harvest.HasPinVisibleDistance() then
 		local map, x, y, measurement = Harvest.GetLocation( true )
 		local divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
@@ -577,7 +654,7 @@ function Harvest.OnUpdate(time)
 			Harvest.RefreshPins()
 		end
 	end
-	
+
 end
 
 -- harvestmap will hide recently visited pins for a given respawn time (time is set in the options)
@@ -590,9 +667,9 @@ function Harvest.UpdateHiddenTime(time)
 	if hiddenTime == 0 then
 		return
 	end
-	
+
 	hiddenTime = hiddenTime * 60 -- minutes to seconds
-	
+
 	local map, x, y, measurement = Harvest.GetLocation(true)
 	local divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
 	local divisions, division
@@ -922,7 +999,7 @@ function Harvest.LoadToCache( pinTypeId, map, measurement )
 				nodes[ index ] = nil
 			end
 		end
-		
+
 		-- merge close nodes based on more accurate map size measurements
 		local dx, dy, x1, y1, x2, y2
 		local nodeA, nodeB
@@ -964,7 +1041,7 @@ function Harvest.LoadToCache( pinTypeId, map, measurement )
 				end
 			end; end
 		end; end
-		
+
 		local subdivisions = {}
 		local subdivisionX, subdivisionY
 		for index, node in pairs(cachedNodes) do
@@ -1103,7 +1180,7 @@ function Harvest.OnLoad(eventCode, addOnName)
 	-- add these callbacks only after the addon has loaded to fix SnowmanDK's bug (comment section 20.12.15)
 	EVENT_MANAGER:RegisterForEvent("HarvestMap", EVENT_LOOT_RECEIVED, Harvest.OnLootReceived)
 	EVENT_MANAGER:RegisterForEvent("HarvestMap", EVENT_LOOT_UPDATED, Harvest.OnLootUpdated)
-	
+
 end
 
 -- initialization which is dependant on other addons is done on EVENT_PLAYER_ACTIVATED
