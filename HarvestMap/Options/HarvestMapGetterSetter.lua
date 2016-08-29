@@ -5,6 +5,14 @@ if not Harvest then
 	Harvest = {}
 end
 
+function Harvest.GetDisplaySpeed()
+	return Harvest.savedVars["settings"].displaySpeed
+end
+
+function Harvest.SetDisplaySpeed( speed )
+	Harvest.savedVars["settings"].displaySpeed = speed
+end
+
 function Harvest.HasPinVisibleDistance()
 	return Harvest.savedVars["settings"].hasMaxVisibleDistance
 end

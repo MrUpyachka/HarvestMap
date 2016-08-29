@@ -184,7 +184,7 @@ function Harvest.InitializeOptions()
 		default = Harvest.defaultSettings.hasMaxVisibleDistance,
 		width = "half",
 	})
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("drawdistance"),
@@ -196,6 +196,18 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetPinVisibleDistance,
 		default = 0,
 		width = "half",
+	})
+
+	optionsTable:insert({
+		type = "slider",
+		name = Harvest.GetLocalization("drawspeed"),
+		tooltip = Harvest.GetLocalization("drawspeedtooltip"),
+		--warning = Harvest.GetLocalizedHiddenTimeWarning(),
+		min = 10,
+		max = 500,
+		getFunc = Harvest.GetDisplaySpeed,
+		setFunc = Harvest.SetDisplaySpeed,
+		default = Harvest.defaultSettings.displaySpeed,
 	})
 	
 	optionsTable:insert({

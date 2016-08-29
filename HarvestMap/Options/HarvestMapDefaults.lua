@@ -129,4 +129,5 @@ Harvest.defaultSettings = {
 	maxCachedMaps = 5,
 	maxVisibleDistance = 0.004062019202318,
 	hasMaxVisibleDistance = false,
+	displaySpeed = 500,
 }

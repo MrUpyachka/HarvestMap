@@ -253,9 +253,6 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 	end
 	
 	Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
-	-- refresh pins as a new one was added
-	--Harvest.needsRefresh = Harvest.needsRefresh or {}
-	--Harvest.needsRefresh[pinTypeId] = true
 	HarvestFarm.FarmedANode(objectName, stackCount)
 end
 
@@ -473,6 +470,8 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 end
 
 function Harvest.OnUpdate(time)
+	Harvest.UpdateMapPinCreation()
+	--Harvest.UpdateCompassPinCreation()
 	-- display delayed error message
 	-- this message is saved by a process which must not crash (ie deserialization)
 	if Harvest.error then
