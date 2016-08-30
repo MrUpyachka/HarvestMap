@@ -147,10 +147,9 @@ end
 function Harvest.IsNodeValid(node)
 	if type(node[Harvest.X]) == "number" and type(node[Harvest.Y]) == "number" then
 		-- sometimes encoding the coordinates is wrong and the become ridiculously large numbers or 0
-		--if node[Harvest.X] > 0 and node[Harvest.X] < 1 and node[Harvest.Y] > 0 and node[Harvest.Y] < 1 then
-		-- removed the above condition as there are nodes outside the [0,1] intervall in case of weird underground shenanigans by eso
+		if node[Harvest.X] > 0 and node[Harvest.X] < 1 and node[Harvest.Y] > 0 and node[Harvest.Y] < 1 then
 			return true
-		--end
+		end
 	end
 	return false
 end
@@ -338,22 +337,19 @@ function Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 	local divX, divY = Harvest.GetSubdivisionCoords(x, y, measurement)
 	local divisions, division
 	for i = -1, 1 do
-		divisions = nodes[divX+i]
-		if divisions then
-			for j = -1, 1 do
-				division = divisions[divY+j]
-				if division then
-					for index, node in pairs( division ) do
-						dx = node.data[Harvest.X] - x
-						dy = node.data[Harvest.Y] - y
-						if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
-							return divX+i, divY+j, index
-						end
-						dx = node.global[Harvest.X] - globalX
-						dy = node.global[Harvest.Y] - globalY
-						if dx * dx + dy * dy < globalMinDistance then
-							return divX+i, divY+j, index
-						end
+		for j = -1, 1 do
+			division = Harvest.GetSubdivision(nodes, divX + i, divY + j)
+			if division then
+				for index, node in pairs( division ) do
+					dx = node.data[Harvest.X] - x
+					dy = node.data[Harvest.Y] - y
+					if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
+						return divX+i, divY+j, index
+					end
+					dx = node.global[Harvest.X] - globalX
+					dy = node.global[Harvest.Y] - globalY
+					if dx * dx + dy * dy < globalMinDistance then
+						return divX+i, divY+j, index
 					end
 				end
 			end
@@ -409,10 +405,9 @@ local function addNodeData(nodes, index, x, y, measurement, nodeData)
 	-- we need to save the data in serialized form in the save file,
 	-- but also as deserialized table in the cache table for faster access.
 	local divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
-	nodes[divisionX] = nodes[divisionX] or {}
-	nodes[divisionX][divisionY] = nodes[divisionX][divisionY] or {}
+	local division = Harvest.GetSubdivision(nodes, divisionX, divisionY)
 	-- saving the node in deserialized form
-	nodes[divisionX][divisionY][index] = { data = nodeData,
+	division[index] = { data = nodeData,
 		time = GetFrameTimeSeconds(), -- time for the respawn timer
 		global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
 
@@ -684,41 +679,35 @@ function Harvest.UpdateHiddenTime(time)
 			nodes = Harvest.GetNodesOnMap( pinTypeId, map )
 			pinType = Harvest.GetPinType( pinTypeId )
 			-- check if one of the visible pins needs to be hidden
-			for i = -2, 2 do
-				divisions = nodes[divisionX+i]
-				if divisions then
-					for j = -2, 2 do
-						division = divisions[divisionY+j]
-						if division then
-							for _, node in pairs(division) do
-								dx = x - node.data[Harvest.X]
-								dy = y - node.data[Harvest.Y]
-								if (not onHarvest) and dx * dx + dy * dy < minDistance then
-									-- the player is close to the pin
-									-- now check if it has a pin
-									if not node.hidden then
-										Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-										LMP:RemoveCustomPin( pinType, node.data )
-										COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
-										node.hidden = true
-									end
-									node.time = time
-								else
-									-- the player isn't close to the pin, so check if we have to show it again
-									if node.hidden and (time - node.time > hiddenTime) then
-										--if not ZO_WorldMap_IsWorldMapShowing() then
-										--	if(SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED) then
-										--		CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
-										--		return
-										--	end
-										--end
-										Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
-										LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-										COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-										node.hidden = false
-									end
-								end
-							end
+			division = Harvest.GetSubdivision(nodes, divisionX + i, divisionY + j)
+			if division then
+				for _, node in pairs(division) do
+					dx = x - node.data[Harvest.X]
+					dy = y - node.data[Harvest.Y]
+					if (not onHarvest) and dx * dx + dy * dy < minDistance then
+						-- the player is close to the pin
+						-- now check if it has a pin
+						if not node.hidden then
+							Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
+							LMP:RemoveCustomPin( pinType, node.data )
+							COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
+							node.hidden = true
+						end
+						node.time = time
+					else
+						-- the player isn't close to the pin, so check if we have to show it again
+						-- TODO not all pins are checked, only those in the player's subdivision
+						if node.hidden and (time - node.time > hiddenTime) then
+							--if not ZO_WorldMap_IsWorldMapShowing() then
+							--	if(SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED) then
+							--		CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
+							--		return
+							--	end
+							--end
+							Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
+							LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+							COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+							node.hidden = false
 						end
 					end
 				end
@@ -941,6 +930,11 @@ do
 	end
 end
 
+function Harvest.GetSubdivision(divisions, divisionX, divisionY)
+	if divisionX < 0 or divisionX >= divisions.width then return nil end
+	return divisions[divisionX + divisionY * divisions.width]
+end
+
 function Harvest.GetSubdivisionCoords(x, y, measurement)
 	if not measurement then
 		return 0, 0
@@ -1042,13 +1036,12 @@ function Harvest.LoadToCache( pinTypeId, map, measurement )
 			end; end
 		end; end
 
-		local subdivisions = {}
-		local subdivisionX, subdivisionY
+		local subdivisions = { width = zo_floor(1 / Harvest.GetPinVisibleDistance() * measurement.scaleX) + 1 }
+		local subdivisionX, subdivisionY, index
 		for index, node in pairs(cachedNodes) do
 			subdivisionX, subdivisionY = Harvest.GetSubdivisionCoords(node.data[1], node.data[2], measurement)
-			subdivisions[subdivisionX] = subdivisions[subdivisionX] or {}
-			subdivisions[subdivisionX][subdivisionY] = subdivisions[subdivisionX][subdivisionY] or {}
-			subdivisions[subdivisionX][subdivisionY][index] = node
+			subdivisions[subdivisionX + subdivisionY * subdivisions.width] = subdivisions[subdivisionX + subdivisionY * subdivisions.width] or {}
+			subdivisions[subdivisionX + subdivisionY * subdivisions.width][index] = node
 		end
 		Harvest.cache[ map ].subdivisions[ pinTypeId ] = subdivisions
 	end
