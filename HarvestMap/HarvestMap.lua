@@ -462,7 +462,7 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	local divisionX, divisionY, index = Harvest.ShouldMergeNodes( nodes, x, y, measurement )
 	local nodeData
 	if index then
-		local node = nodes[ divisionX ][ divisionY ][ index ]
+		local node = Harvest.GetDivision(nodes, divisionX, divisionY)
 
 		LMP:RemoveCustomPin( pinType, node.data )
 		COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
