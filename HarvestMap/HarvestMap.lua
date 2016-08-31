@@ -18,6 +18,8 @@ local pairs = _G["pairs"]
 local tostring = _G["tostring"]
 local zo_floor = _G["zo_floor"]
 
+-- TODO move creation and deletion of pins to the HarvestMapMarkers.lua file via callbacks,
+-- this way all pin related stuff is located in a single file.
 
 ---
 -- Function-adapter to invoke RefreshPins for all used pins controllers.
@@ -234,7 +236,7 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 	end
 
 	Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
-	HarvestFarm.FarmedANode(objectName, stackCount)
+	HarvestFarm.FarmedANode(objectName, stackCount) -- TODO move this to HarvestMapFarm.lua via callback
 end
 
 -- neded for those players that play without auto loot
@@ -337,8 +339,6 @@ local function nodeCreatedOrUpdated(event, nodeTag, pinTypeId)
 		end
 	end
 end
-Harvest.RegisterForEvent(Harvest.NODECREATED, nodeCreatedOrUpdated)
-Harvest.RegisterForEvent(Harvest.NODEUPDATED, nodeCreatedOrUpdated)
 
 function Harvest.OnUpdate(time)
 
@@ -554,6 +554,9 @@ function Harvest.OnLoad(eventCode, addOnName)
 	if addOnName ~= "HarvestMap" then
 		return
 	end
+	-- add callbacks
+	Harvest.RegisterForEvent(Harvest.NODECREATED, nodeCreatedOrUpdated)
+	Harvest.RegisterForEvent(Harvest.NODEUPDATED, nodeCreatedOrUpdated)
 	-- initialize temporary variables
 	Harvest.wasHarvesting = false
 	Harvest.action = nil

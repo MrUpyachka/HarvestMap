@@ -16,7 +16,8 @@ Harvest.SETTINGCHANGED = 7
 Harvest.EVENTS = {
 	Harvest.FOUNDDATA, Harvest.NODECREATED,
 	Harvest.NODEUPDATED, Harvest.NODEDELETED,
-	Harvest.SETTINGCHANGED,
+	Harvest.SETTINGCHANGED, Harvest.NODEHIDDEN,
+	Harvest.NODEUNHIDDEN,
 }
 
 Harvest.callbacks = {}
