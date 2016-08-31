@@ -72,16 +72,13 @@ function Harvest.AddMapPinCallback( pinTypeId )
 	end
 	--Harvest.mapCounter[pinType] = Harvest.mapCounter[pinType] + 1
 	creationQueue:StartNewCreation( pinTypeId )
-	local division, divisions
+	local division
 	for i = -2, 2 do
-		divisions = nodes[x+i]
-		if divisions then
-			for j = -2, 2 do
-				division = divisions[y+j]
-				if division then
-					creationQueue:CreateDivisionForPinType( pinTypeId, division)
-					--Harvest.AddPinsLater(Harvest.mapCounter[pinType], pinType, division, nil)
-				end
+		for j = -2, 2 do
+			division = Harvest.GetSubdivision(nodes, x + i, y + j)
+			if division then
+				creationQueue:CreateDivisionForPinType( pinTypeId, division)
+				--Harvest.AddPinsLater(Harvest.mapCounter[pinType], pinType, division, nil)
 			end
 		end
 	end

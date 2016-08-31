@@ -38,13 +38,10 @@ function Harvest.AddCompassCallback( pinTypeId, g_mapPinManager )
 	
 	local division
 	for i = -2, 2 do
-		divisions = nodes[x+i]
-		if divisions then
-			for j = -2, 2 do
-				division = divisions[y+j]
-				if division then
-					Harvest.AddCompassPinsLater(Harvest.compassCounter[pinType], g_mapPinManager, pinType, division, nil)
-				end
+		for j = -2, 2 do
+			division = Harvest.GetSubdivision(nodes, x + i, y + j)
+			if division then
+				Harvest.AddCompassPinsLater(Harvest.compassCounter[pinType], g_mapPinManager, pinType, division, nil)
 			end
 		end
 	end
@@ -75,7 +72,7 @@ function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, i
 			return
 		end
 		if time - node.time > hiddenTime then
-			g_mapPinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+			g_mapPinManager:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y], true )
 		end
 	end
 	--if Harvest.HasPinVisibleDistance() then
