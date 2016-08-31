@@ -76,16 +76,13 @@ local function constructGraph(maxLength)
 	-- add selected ressource nodes to the points/vertices list
 	for _, pinTypeId in pairs(Harvest.PINTYPES) do
 		if HarvestFarm.includedPinTypes[ pinTypeId ] then
-			local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
-			for _, division in pairs(nodes) do
-				if type(division) == "table" then -- .width key should be skipped
-					for nodeIndex, node in pairs(division) do
-						-- each point/vertex consists of and x and y coordinate and a list of the neighbors/edges
-						table.insert(points, {node.data[1], node.data[2], node.global[1], node.global[2], edges={}})
-						num_data_points = num_data_points + 1
-					end
-				end
-			end
+			HarvestDB.ForAllNodesOfPinType(map, measurement, pinTypeId, function(nodeTag, pinTypeId)
+				local x, y, globalX, globalY
+				x, y = HarvestDB.GetPosition(nodeTag)
+				globalX, globalY = HarvestDB.GetGlobalPosition(nodeTag)
+				table.insert(points, {x, y, globalX, globalY, edges={}})
+				num_data_points = num_data_points + 1
+			end)
 		end
 	end
 	-- no ressources available, return an error

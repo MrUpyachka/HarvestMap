@@ -30,21 +30,13 @@ function Harvest.AddCompassCallback( pinTypeId, g_mapPinManager )
 	end
 
 	local map, x, y, measurement = Harvest.GetLocation( true )
-	x, y = Harvest.GetSubdivisionCoords(x, y, measurement)
-	local nodes = Harvest.GetNodesOnMap( pinTypeId, map, measurement )
-	
+
 	local pinType = Harvest.GetPinType( pinTypeId )
-	Harvest.compassCounter[pinType] = Harvest.compassCounter[pinType] + 1
-	
-	local division
-	for i = -2, 2 do
-		for j = -2, 2 do
-			division = Harvest.GetSubdivision(nodes, x + i, y + j)
-			if division then
-				Harvest.AddCompassPinsLater(Harvest.compassCounter[pinType], g_mapPinManager, pinType, division, nil)
-			end
-		end
-	end
+	HarvestDB.ForVisibleNodesOfPinType(map, x, y, measurement, pinTypeId,
+		function(nodeTag, pinTypeId)
+			local x, y = HarvestDB.GetPosition(nodeTag)
+			COMPASS_PINS:CreatePin( pinType, nodeTag, x, y )
+		end)
 end
 
 function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index)
@@ -103,6 +95,10 @@ function Harvest.InitializeCompassPinType( pinTypeId )
 end
 
 function Harvest.InitializeCompassMarkers()
+	Harvest.RegisterForEvent(Harvest.NODEDELETED, function(event, nodeTag, pinTypeId)
+		local pinType = Harvest.GetPinType(pinTypeId)
+		COMPASS_PINS:RemovePin(nodeTag, pinType)
+	end)
 	-- initialize each compass pin type
 	for _, pinType in pairs( Harvest.PINTYPES ) do
 		Harvest.InitializeCompassPinType( pinType )

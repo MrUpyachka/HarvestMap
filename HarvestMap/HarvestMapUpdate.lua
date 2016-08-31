@@ -3,6 +3,22 @@ if not Harvest then
 end
 
 local Harvest = _G["Harvest"]
+local AS = LibStub("AceSerializer-3.0h")
+
+-- serialize the given node via the ACE library
+-- serializing the data decreases the loadtimes and file size a lot
+local function Serialize(data)
+	return AS:Serialize(data)
+end
+
+local function Deserialize(data)
+	local success, result = AS:Deserialize(data)
+	--  it seems some bug in HarvestMerge deleted the x or y coordinates
+	if success then
+		return result
+	end
+	return nil
+end
 
 -- updating the data can take quite some time
 -- to prevent the game from freezing, we break each update process down into smaller parts
@@ -66,15 +82,15 @@ function Harvest.UpdatePreDBData( saveFile )
 	-- if no save file was given, update all save files
 	if saveFile == nil then
 		if HarvestAD then
-			Harvest.UpdatePreDBData( Harvest.savedVars["ADnodes"] )
+			Harvest.UpdatePreDBData( HarvestDB.savedVars["ADnodes"] )
 		end
 		if HarvestDC then
-			Harvest.UpdatePreDBData( Harvest.savedVars["DCnodes"] )
+			Harvest.UpdatePreDBData( HarvestDB.savedVars["DCnodes"] )
 		end
 		if HarvestEP then
-			Harvest.UpdatePreDBData( Harvest.savedVars["EPnodes"] )
+			Harvest.UpdatePreDBData( HarvestDB.savedVars["EPnodes"] )
 		end
-		Harvest.UpdatePreDBData( Harvest.savedVars["nodes"] )
+		Harvest.UpdatePreDBData( HarvestDB.savedVars["nodes"] )
 		return
 	end
 	-- save file is already updated
@@ -92,15 +108,15 @@ function Harvest.UpdateOldTrove( saveFile )
 	-- if no save file was given, update all save files
 	if saveFile == nil then
 		if HarvestAD then
-			Harvest.UpdateOldTrove( Harvest.savedVars["ADnodes"] )
+			Harvest.UpdateOldTrove( HarvestDB.savedVars["ADnodes"] )
 		end
 		if HarvestDC then
-			Harvest.UpdateOldTrove( Harvest.savedVars["DCnodes"] )
+			Harvest.UpdateOldTrove( HarvestDB.savedVars["DCnodes"] )
 		end
 		if HarvestEP then
-			Harvest.UpdateOldTrove( Harvest.savedVars["EPnodes"] )
+			Harvest.UpdateOldTrove( HarvestDB.savedVars["EPnodes"] )
 		end
-		Harvest.UpdateOldTrove( Harvest.savedVars["nodes"] )
+		Harvest.UpdateOldTrove( HarvestDB.savedVars["nodes"] )
 		return
 	end
 	-- save file is already updated
@@ -119,15 +135,15 @@ end
 function Harvest.UpdateItemIdList( saveFile )
 	if saveFile == nil then
 		if HarvestAD then
-			Harvest.UpdateItemIdList( Harvest.savedVars["ADnodes"] )
+			Harvest.UpdateItemIdList( HarvestDB.savedVars["ADnodes"] )
 		end
 		if HarvestDC then
-			Harvest.UpdateItemIdList( Harvest.savedVars["DCnodes"] )
+			Harvest.UpdateItemIdList( HarvestDB.savedVars["DCnodes"] )
 		end
 		if HarvestEP then
-			Harvest.UpdateItemIdList( Harvest.savedVars["EPnodes"] )
+			Harvest.UpdateItemIdList( HarvestDB.savedVars["EPnodes"] )
 		end
-		Harvest.UpdateItemIdList( Harvest.savedVars["nodes"] )
+		Harvest.UpdateItemIdList( HarvestDB.savedVars["nodes"] )
 		return
 	end
 	
@@ -148,7 +164,7 @@ function Harvest.UpdateItemIdList( saveFile )
 end
 
 function Harvest.UpdatePreOrsiniumData( saveFile )
-	saveFile = saveFile or Harvest.savedVars["nodes"]
+	saveFile = saveFile or HarvestDB.savedVars["nodes"]
 
 	if (saveFile.dataVersion or 0) >= 10 then
 		return
@@ -186,7 +202,7 @@ function Harvest.DelayedUpdatePreDBData(saveFile, pinTypes, nodes, mapIndex, pin
 		end
 		-- here is the actual update part, all the stuff above is just used to delay the update over several frames
 		changed = false
-		node = Harvest.Deserialize(entry)
+		node = Deserialize(entry)
 		if node then -- check if something went wrong while deserializing
 			-- node name list gets removed to reduce filesize
 			-- the node name list isn't needed anymore as tooltips are calculated via the item ids
@@ -208,7 +224,7 @@ function Harvest.DelayedUpdatePreDBData(saveFile, pinTypes, nodes, mapIndex, pin
 			end
 			node[4] = itemId2Timestamp
 			-- serialize the changed data and save it
-			nodes[nodeIndex] = Harvest.Serialize(node)
+			nodes[nodeIndex] = Serialize(node)
 		else -- node couldn't be deserialized, delete the corrupted data!
 			nodes[nodeIndex] = nil
 		end
@@ -251,7 +267,7 @@ function Harvest.DelayedUpdateItemIdList(saveFile, pinTypes, nodes, mapIndex, pi
 		end
 		-- here is the actual update part, all the stuff above is just used to delay the update over several frames
 		changed = false
-		node = Harvest.Deserialize(entry)
+		node = Deserialize(entry)
 		if node then -- check if something went wrong while deserializing
 			if type(node[4]) == "number" then -- itemId (4th field) becomes a list
 				node[4] = { node[4] }
@@ -268,7 +284,7 @@ function Harvest.DelayedUpdateItemIdList(saveFile, pinTypes, nodes, mapIndex, pi
 				changed = true
 			end
 			if changed then -- serialize the data again and save it, if something was changed by the update routine
-				nodes[nodeIndex] = Harvest.Serialize(node)
+				nodes[nodeIndex] = Serialize(node)
 			end
 		else -- node couldn't be deserialized, delete the corrupted data!
 			nodes[nodeIndex] = nil

@@ -19,7 +19,7 @@ end
 
 function Harvest.SetHasPinVisibleDistance( value )
 	Harvest.savedVars["settings"].hasMaxVisibleDistance = value
-	Harvest.cache = {}
+	Harvest.FireEvent(Harvest.SETTINGCHANGED, "hasviewdistance", value)
 	Harvest.RefreshPins()
 end
 
@@ -37,7 +37,7 @@ end
 
 function Harvest.SetPinVisibleDistance(distance)
 	Harvest.savedVars["settings"].maxVisibleDistance = distance * math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins()) / 10
-	Harvest.cache = {}
+	Harvest.FireEvent(Harvest.SETTINGCHANGED, "viewdistance", distance)
 	Harvest.RefreshPins()
 end
 
@@ -179,7 +179,7 @@ local difference -- temporary variable to save the new max timedifference until 
 function Harvest.ApplyTimeDifference()
 	if difference then
 		Harvest.savedVars["global"].maxTimeDifference = difference
-		Harvest.cache = {}
+		Harvest.FireEvent(Harvest.SETTINGCHANGED, "applytimedifference")
 		Harvest.RefreshPins()
 	end
 end

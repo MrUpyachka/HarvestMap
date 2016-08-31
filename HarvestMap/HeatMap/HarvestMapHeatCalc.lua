@@ -52,16 +52,12 @@ function HarvestHeat.CalculateHeatMap()
 	local mapName, x, y, measurement = Harvest.GetLocation( viewedMap )
 	for _, pinTypeId in pairs(harvest.PINTYPES) do
 		if harvest.IsPinTypeVisible( pinTypeId ) then
-			local nodes = harvest.GetNodesOnMap( pinTypeId, mapName, measurement )
-			for _, division in pairs(divisions) do
-				if type(division) == "table" then -- .width key should be skipped
-					for nodeIndex, node in pairs(division) do
-						x = zo_max(0, zo_min(zo_floor(node.data[1] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
-						y = zo_max(0, zo_min(zo_floor(node.data[2] * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
-						map[x][y] = map[x][y] + 1
-					end
-				end
-			end
+			HarvestDB.ForAllNodes(mapName, measurement, function(nodeTag, pinTypeId)
+				x, y = HarvestDB.GetPosition(nodeTag)
+				x = zo_max(0, zo_min(zo_floor(x * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
+				y = zo_max(0, zo_min(zo_floor(y * harvestHeat.numSubdivisions * 5), harvestHeat.numSubdivisions * 5 - 1))
+				map[x][y] = map[x][y] + 1
+			end)
 		end
 	end
 	
@@ -85,19 +81,3 @@ function HarvestHeat.CalculateHeatMap()
 	harvestHeat.needsRefresh = false
 end
 
--- debug function which displays the heat map in the chat box
--- to bad the chat font isn't monospaced :(
-function HarvestHeat.displayHeat(ratio)
-	local str
-	for y = 0, (numSubdivisions - 1) do
-		str = ""
-		for x = 0, (numSubdivisions - 1) do
-			if HarvestHeat.heatMap[x][y] / HarvestHeat.maxHeat >= ratio then
-				str = str .. "X"
-			else
-				str = str .. "_"
-			end
-		end
-		d(str)
-	end
-end

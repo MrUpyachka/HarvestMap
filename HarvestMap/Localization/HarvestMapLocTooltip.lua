@@ -645,7 +645,8 @@ function Harvest.GetLocalizedTooltip( pin )
 		table.insert(result, "Click to delete:" )
 	end
 
-	local itemIds = pin.m_PinTag[4]
+	local nodeTag = pin.m_PinTag
+	local itemIds = HarvestDB.GenerateItemTable(nodeTag)
 	
 	local lines = {}
 	if Harvest.AreExactItemsShown() then
