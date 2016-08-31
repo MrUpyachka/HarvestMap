@@ -410,6 +410,7 @@ local function mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stam
 	-- update the pins position and version
 	-- the old position could be outdated while the new one was just confirmed to be correct
 	nodeData[Harvest.TIME] = stamp
+	-- TODO discuss that it may be better to add some threshhold, before we update old coordinates.
 	nodeData[Harvest.X] = x
 	nodeData[Harvest.Y] = y
 	node.global = { Harvest.LocalToGlobal(x, y, measurement) }
@@ -508,9 +509,9 @@ function Harvest.SaveData( map, x, y, measurement, pinTypeId, itemId )
 	local node
 	local nodeData
 	if index then
-		node = Harvest.GetDivision(nodes, divisionX, divisionY)
+		node = Harvest.GetSubdivision(nodes, divisionX, divisionY)[index]
 
-		-- TODO rework this to avoid deletion of pin inside save function.
+		-- TODO rework this to avoid deletion of pin inside save function. See ProcessData(..)
 		RemovePinInAllControllers(pinType, node.data) -- Remove before merge. While coordinates not changed.
 
 		nodeUpdated = mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stamp)
@@ -579,12 +580,15 @@ function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
 		Harvest.Debug( "Pin hidden because its harvested just now.")
 		node.time = GetFrameTimeSeconds()
 	elseif (nodeAdded or nodeUpdated) then
+		-- For update node pin already removed just before the moment when we update position with latest one.
+		-- TODO seems that its wrong solution and its better to cache old position to remove/move old pin after all calculation.
 		node.hidden = false
 		CreatePinInAllControllers(pinType, node.data)
 	end
 	-- if a minimap is loaded, we have to refresh all pins
 	-- otherwise the (re-)creation of the new/updates node is enough
 	if (nodeAdded or nodeUpdated) and isMapAddonCompatibilityRequired() then
+		-- compatibility with minimap plugins means that we always need to refresh all pins on each update.
 		-- TODO remove direct calls of refreshPins.
 		Harvest.RefreshPins( pinTypeId )
 	end
@@ -735,8 +739,7 @@ function Harvest.UpdateHiddenTime(time)
 						-- now check if it has a pin
 						if not node.hidden then
 							Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-							LMP:RemoveCustomPin( pinType, node.data )
-							COMPASS_PINS:RemovePin( node.data, pinType, node.data[Harvest.X], node.data[Harvest.Y] )
+							RemovePinInAllControllers(pinType, node.data)
 							node.hidden = true
 						end
 						node.time = time
@@ -751,8 +754,7 @@ function Harvest.UpdateHiddenTime(time)
 							--	end
 							--end
 							Harvest.Debug( "respawn timer displayed pin " .. tostring(node.data) .. " of pin type " .. tostring(pinType) .. " again" )
-							LMP:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
-							COMPASS_PINS:CreatePin( pinType, node.data, node.data[Harvest.X], node.data[Harvest.Y] )
+							CreatePinInAllControllers(pinType, node.data)
 							node.hidden = false
 						end
 					end
@@ -976,6 +978,7 @@ do
 	end
 end
 
+-- TODO camel-case for naming, GetSubDivision.
 function Harvest.GetSubdivision(divisions, divisionX, divisionY)
 	if divisionX < 0 or divisionX >= divisions.width then return nil end
 	return divisions[divisionX + divisionY * divisions.width]
