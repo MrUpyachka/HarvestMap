@@ -98,8 +98,7 @@ function Harvest.InitializeCompassMarkers()
     -- TODO implement compass controller and use callback controller wich passed through constructor.
 
     -- Listen Event from controller. It this case HarvestDB know nothing about events and provides only interface to storage.
-    CALLBACK_MANAGER:RegisterCallback(HarvestDB.Controller.NODE_DELETED_EVENT, function(event, nodeTag, pinTypeId)
-		local pinType = Harvest.GetPinType(pinTypeId)
+    CALLBACK_MANAGER:RegisterCallback(HarvestEvents.NODE_DELETED_EVENT, function(event, nodeTag, pinType)
 		COMPASS_PINS:RemovePin(nodeTag, pinType)
 	end)
 	-- initialize each compass pin type

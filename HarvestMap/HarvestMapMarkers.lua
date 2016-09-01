@@ -282,7 +282,7 @@ Harvest.debugHandler = {
 			end
 			local pinType, pinTag = pin:GetPinTypeAndTag()
 			local map = Harvest.GetMap()
-            CALLBACK_MANAGER:FireCallbacks(HarvestDB.Controller.DELETE_NODE_REQUEST, map, pinTag) -- Just fire event into the same callback manager.
+            CALLBACK_MANAGER:FireCallbacks(HarvestEvents.DELETE_NODE_REQUEST, map, pinTag) -- Just fire event into the same callback manager.
 		end,
 		show = function() return true end,
 		duplicates = function(pin1, pin2) return not Harvest.IsDebugEnabled() end,

@@ -26,6 +26,7 @@ Libs/LibMapPing/LibMapPing.lua
 Libs/LibGPS/LibGPS.lua
 Libs/CustomCompassPins/CustomCompassPins.lua
 
+Event/HarvestEvents.lua
 HarvestMapCallback.lua
 HarvestMapDB.lua
 DB/HarvestDbController.lua

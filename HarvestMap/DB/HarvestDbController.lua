@@ -14,24 +14,8 @@ HarvestDbController = {}
 -- Also we need to have async entity which tracks changes of map (zone/location/level).
 
 
---- Name for request to delete node.
--- Required parameters:
--- @param map map which contain interest node.
--- @param nodeId identifier of node. nodeTag in harvestDB context.
---
-HarvestDB.Controller.DELETE_NODE_REQUEST = "HARVEST_DELETE_NODE_REQUEST"
-HarvestDB.Controller.UPDATE_NODE_REQUEST = "HARVEST_UPDATE_NODE_REQUEST"
-HarvestDB.Controller.ADD_NODE_REQUEST = "HARVEST_ADD_NODE_REQUEST"
-
----
---
-HarvestDB.Controller.NODE_DELETED_EVENT = "HARVEST_NODE_DELETED_EVENT"
-HarvestDB.Controller.NODE_ADDED_EVENT = "HARVEST_NODE_ADDED_EVENT"
-HarvestDB.Controller.NODE_UPDATED_EVENT = "HARVEST_NODE_UPDATED_EVENT"
-
-
-local DELETE_NODE_REQUEST = HarvestDB.Controller.DELETE_NODE_REQUEST
-local NODE_DELETED_EVENT = HarvestDB.Controller.NODE_DELETED_EVENT
+local DELETE_NODE_REQUEST = HarvestEvents.DELETE_NODE_REQUEST
+local NODE_DELETED_EVENT = HarvestEvents.NODE_DELETED_EVENT
 
 --- Creates an instance of controller.
 -- @param s storage of nodes.
@@ -48,16 +32,16 @@ end
 ---
 -- Callback method to handle request for node deletion.
 -- @param map map which contain interest node.
--- @param nodeId identifier of node. nodeTag in harvestDB context.
+-- @param nodeTag identifier of node. nodeTag in harvestDB context.
 --
-function HarvestDbController:onDeleteNodeRequest(map, nodeId)
-    local node = self.storage.GetNodeFromMap(map, nodeId)
+function HarvestDbController:onDeleteNodeRequest(map, nodeTag)
+    local node = self.storage.GetNodeFromMap(map, nodeTag)
     local pinTypeId = node.pinTypeId -- TODO return node data with pinTypeId from DB. Not implemented yet
-    self.storage.DeleteNode(map, nodeId)
+    self.storage.DeleteNode(map, nodeTag)
 
     local pinType = Harvest.GetPinType(pinTypeId)
     -- TODO Seems that we can avoid pinTypeId parameter for deletion of pin. By optimization of storages in ralted libraries.
-    self.callbackController:FireCallbacks(NODE_DELETED_EVENT, nodeId, pinType)
+    self.callbackController:FireCallbacks(NODE_DELETED_EVENT, nodeTag, pinType)
 end
 
 ---
