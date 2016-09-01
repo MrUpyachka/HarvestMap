@@ -72,7 +72,7 @@ function Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, i
 	--else
 		zo_callLater(function() Harvest.AddCompassPinsLater(counter, g_mapPinManager, pinType, nodes, index) end, 0.1)
 	--end
-	
+
 end
 
 function Harvest.InitializeCompassPinType( pinTypeId )
@@ -95,7 +95,10 @@ function Harvest.InitializeCompassPinType( pinTypeId )
 end
 
 function Harvest.InitializeCompassMarkers()
-	Harvest.RegisterForEvent(Harvest.NODEDELETED, function(event, nodeTag, pinTypeId)
+    -- TODO implement compass controller and use callback controller wich passed through constructor.
+
+    -- Listen Event from controller. It this case HarvestDB know nothing about events and provides only interface to storage.
+    CALLBACK_MANAGER:RegisterCallback(HarvestDB.Controller.NODE_DELETED_EVENT, function(event, nodeTag, pinTypeId)
 		local pinType = Harvest.GetPinType(pinTypeId)
 		COMPASS_PINS:RemovePin(nodeTag, pinType)
 	end)

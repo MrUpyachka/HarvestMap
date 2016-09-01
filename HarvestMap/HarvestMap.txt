@@ -28,6 +28,7 @@ Libs/CustomCompassPins/CustomCompassPins.lua
 
 HarvestMapCallback.lua
 HarvestMapDB.lua
+DB/HarvestDbController.lua
 HarvestMap.lua
 HarvestMapConstants.lua
 

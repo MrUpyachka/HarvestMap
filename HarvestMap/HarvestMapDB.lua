@@ -75,6 +75,9 @@ local GetSubDivisionCoords, GetSubDivision, GetSubDivisionsOnMap, SaveData
 local GetNearestNodeIndex, ShouldMergeNodes, LoadToCache, Serialize, Deserialize
 local CheckNodeVersion, GetSaveFile, GetSpecialSaveFile, IsNodeValid
 
+-- TODO split module for several files. All iterators could be initialized separately. Root module should contain only "interface"
+
+
 ---
 -- executes the callback function for each node that is close to the given position
 -- this is for instance used by the respawn timer to hide nodes that are visited by the player
@@ -325,30 +328,8 @@ end
 -- @param nodeTag
 --
 function HarvestDB.GenerateItemTable(nodeTag)
-	return nodeTag.data[Harvest.ITEMS]
+	return nodeTag.data[Harvest.ITEMS] -- TODO nothing generated, just returned
 end
-
-
-function HarvestDB.DeleteNode(map, nodeTag)
-	local saveFile = GetSaveFile( map )
-	for pinTypeId, divisions in pairs( HarvestDB.cache[ map ].subdivisions) do
-		for index, division in pairs(divisions) do
-			if type(division) == "table" then
-				for nodeIndex, node in pairs(division) do
-					if node == nodeTag then
-						Harvest.FireEvent(Harvest.NODEDELETED, nodeTag, pinTypeId) -- needs to be called before the deletion
-						-- otherwise the callback functions can not access the node's data
-						saveFile.data[ map ][ pinTypeId ][ nodeIndex ] = nil
-						division[ nodeIndex ] = nil
-						return
-					end
-				end
-			end
-		end
-	end
-end
-
-
 
 ---
 -- this imports data given in serialized form into the correct savefiles
@@ -966,3 +947,51 @@ function LoadToCache( pinTypeId, map, measurement )
 	end
 	return HarvestDB.cache[ map ].subdivisions[ pinTypeId ]
 end
+
+---
+-- Returns node by its identifier from specified map.
+-- @param map map to search node in its data.
+-- @param nodeTag identifier of node.
+-- @return node object or nil if map not contain node with such identifier.
+--
+function HarvestDB.GetNodeFromMap(map, nodeTag)
+    local saveFile = GetSaveFile( map )
+    -- TODO divisions should be reworked for better hanling. Avoid iterationing over to find it.
+    for pinTypeId, divisions in pairs( HarvestDB.cache[ map ].subdivisions) do
+        for index, division in pairs(divisions) do
+            if type(division) == "table" then
+                for nodeIndex, node in pairs(division) do
+                    if node == nodeTag then
+                        saveFile.data[ map ][ pinTypeId ][ nodeIndex ] = nil
+                        local node = division[ nodeIndex ]
+                        division[ nodeIndex ] = nil
+                        return node
+                    end
+                end
+            end
+        end
+    end
+end
+
+---
+-- Removes node by its identifier from specified map.
+-- @param map map instance wich conrain interest node.
+-- @param nodeTag unique node identifier.
+--
+function HarvestDB.DeleteNode(map, nodeTag)
+    local saveFile = GetSaveFile( map )
+    for pinTypeId, divisions in pairs( HarvestDB.cache[ map ].subdivisions) do
+        for index, division in pairs(divisions) do
+            if type(division) == "table" then
+                for nodeIndex, node in pairs(division) do
+                    if node == nodeTag then
+                        saveFile.data[ map ][ pinTypeId ][ nodeIndex ] = nil
+                        division[ nodeIndex ] = nil
+                        return
+                    end
+                end
+            end
+        end
+    end
+end
+

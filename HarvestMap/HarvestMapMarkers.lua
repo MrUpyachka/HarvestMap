@@ -8,6 +8,15 @@ local Harvest = _G["Harvest"]
 local HarvestDB = _G["HarvestDB"]
 local pairs = _G["pairs"]
 
+
+
+--[[
+-- Just an example of howto use controller.
+]]--
+local dbController = HarvestDbController:new(HarvestDB, CALLBACK_MANAGER) -- Eso global manager used, just for example.
+dbController:start() -- Now its started and listens for requests.
+
+
 ---
 -- Function-adapter to invoke RefreshPins for all used pins controllers.
 -- @param pinTypeId type ID of pins to refresh.
@@ -195,7 +204,7 @@ function Harvest.PinTypeRefreshCallback( pinTypeId )
 	local pinData = LMP.pinManager.customPins[_G[pinType]]
 	if not FyrMM then -- remove pins to fix the wayshrine bug (3.0.2)
 	-- but with fyrmm this somehow results in missing map pins
-	-- see comment section 11/13/15, 08:57 PM 
+	-- see comment section 11/13/15, 08:57 PM
 		LMP.pinManager:RemovePins(pinData.pinTypeString)
 	end
 
@@ -220,7 +229,7 @@ Harvest.tooltipCreator = {
 
 function Harvest.InitializeMapPinType( pinTypeId )
 	local pinType = Harvest.GetPinType( pinTypeId )
-	
+
 	if pinTypeId == Harvest.TOUR then
 		LMP:AddPinType(
 			pinType,
@@ -257,7 +266,7 @@ end
 
 local nameFun = function( pin )
 	local lines = Harvest.GetLocalizedTooltip( pin )
-	return table.concat(lines, "\n") 
+	return table.concat(lines, "\n")
 end
 
 Harvest.debugHandler = {
@@ -273,7 +282,7 @@ Harvest.debugHandler = {
 			end
 			local pinType, pinTag = pin:GetPinTypeAndTag()
 			local map = Harvest.GetMap()
-			HarvestDB.DeleteNode(map, pinTag)
+            CALLBACK_MANAGER:FireCallbacks(HarvestDB.Controller.DELETE_NODE_REQUEST, map, pinTag) -- Just fire event into the same callback manager.
 		end,
 		show = function() return true end,
 		duplicates = function(pin1, pin2) return not Harvest.IsDebugEnabled() end,

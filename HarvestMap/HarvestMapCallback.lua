@@ -30,6 +30,7 @@ end
 function Harvest.RegisterForEvent(event, callback)
 	assert(Harvest.callbacks[event]) -- valid event?
 	assert(type(callback) == "function") -- valid callback?
+    -- TODO FIXME Why do you need validation of your own code? Only parameters of callback could be validated.
 
 	table.insert(Harvest.callbacks[event], callback)
 end
