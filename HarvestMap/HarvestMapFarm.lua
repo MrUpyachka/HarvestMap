@@ -381,7 +381,7 @@ function HarvestFarm.DisplayPath()
 	end
 end
 
-function HarvestFarm.FarmedANode(link, count)
+function HarvestFarm.FarmedANode(event, link, count)
 	if not HarvestFarm.finishTime then
 		return
 	end
@@ -572,6 +572,8 @@ function HarvestFarm.Initialize()
 	HarvestFarmCompass = _G["HarvestFarmCompass"]
 	HarvestFarmCompassDistance = _G["HarvestFarmCompassDistance"]
 	HarvestFarmCompassStats = _G["HarvestFarmCompassStats"]
+
+	Harvest.RegisterForEvent(Harvest.RESSOURCEFARMED, HarvestFarm.FarmedANode)
 
 	-- initialize the checkbox in the farming helpers stat interface
 	ZO_CheckButton_SetCheckState(HarvestFarmCompassArrowCheckButton, not Harvest.IsArrowHidden())

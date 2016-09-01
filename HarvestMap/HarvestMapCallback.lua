@@ -13,11 +13,13 @@ Harvest.NODEUNHIDDEN = 6
 
 Harvest.SETTINGCHANGED = 7
 
+Harvest.RESSOURCEFARMED = 8
+
 Harvest.EVENTS = {
 	Harvest.FOUNDDATA, Harvest.NODECREATED,
 	Harvest.NODEUPDATED, Harvest.NODEDELETED,
 	Harvest.SETTINGCHANGED, Harvest.NODEHIDDEN,
-	Harvest.NODEUNHIDDEN,
+	Harvest.NODEUNHIDDEN, Harvest.RESSOURCEFARMED
 }
 
 Harvest.callbacks = {}

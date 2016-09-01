@@ -18,41 +18,6 @@ local pairs = _G["pairs"]
 local tostring = _G["tostring"]
 local zo_floor = _G["zo_floor"]
 
--- TODO move creation and deletion of pins to the HarvestMapMarkers.lua file via callbacks,
--- this way all pin related stuff is located in a single file.
-
----
--- Function-adapter to invoke RefreshPins for all used pins controllers.
--- @param pinTypeId type ID of pins to refresh.
---
-local function RefreshPinsInAllControllers(pinTypeId)
-	local pinType = Harvest.GetPinType(pinTypeId)
-	LMP:RefreshPins(pinType)
-	COMPASS_PINS:RefreshPins(pinType)
-end
----
--- Function-adapter to invoke pin deletion for all used pins controllers.
--- @param pinTypeId type ID of pin.
--- @param node node to identify existing pin.
---
-local function RemovePinInAllControllers(pinTypeId, nodeTag)
-	local pinType = Harvest.GetPinType(pinTypeId)
-	LMP:RemoveCustomPin(pinType, nodeTag)
-	COMPASS_PINS:RemovePin(nodeTag, pinType)
-end
-
----
--- Function-adapter to invoke pin creation for all used pins controllers.
--- @param pinTypeId type ID of pin.
--- @param nodeData data to fill pin properties.
---
-local function CreatePinInAllControllers(pinTypeId, nodeTag)
-	local pinType = Harvest.GetPinType(pinTypeId)
-	local x, y = HarvestDB.GetPosition(nodeTag)
-	LMP:CreatePin(pinType, nodeTag, x, y)
-	COMPASS_PINS:CreatePin(pinType, nodeTag, x, y)
-end
-
 -- returns informations regarding the current location
 -- if viewedMap is true, the data is relative to the currently viewed map
 -- otherwise the data is related to the map the player is currently on
@@ -84,6 +49,7 @@ function Harvest.GetLocation( viewedMap )
 end
 
 -- returns true if the measurement is modified for this map
+-- ie dungeons have to be rescaled, otherwise distances get overestimated
 function Harvest.IsModifiedMap( mapType, measurement)
 	return (mapType == MAP_CONTENT_DUNGEON and measurement and measurement.scaleX < 0.003)
 end
@@ -236,7 +202,8 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 	end
 
 	Harvest.ProcessData( map, x, y, measurement, pinTypeId, itemId )
-	HarvestFarm.FarmedANode(objectName, stackCount) -- TODO move this to HarvestMapFarm.lua via callback
+	Harvest.FireEvent(Harvest.RESSOURCEFARMED, objectName, stackCount) -- needed for the harvest farm module
+	-- to calculate the gold per minute score
 end
 
 -- neded for those players that play without auto loot
@@ -266,22 +233,6 @@ function Harvest.OnLootUpdated()
 	end
 end
 
--- refreshes the pins of the given pinType
--- if no pinType is given, all pins are refreshed
-function Harvest.RefreshPins( pinTypeId )
-	-- refresh all pins if no pin type was given
-	if not pinTypeId then
-		for _, pinTypeId in pairs(Harvest.PINTYPES ) do
-			RefreshPinsInAllControllers(pinTypeId)
-		end
-		return
-	end
-	-- refresh only the pins of the given pin type
-	if Harvest.contains( Harvest.PINTYPES, pinTypeId ) then
-		RefreshPinsInAllControllers(pinTypeId)
-	end
-end
-
 -- simple helper function which checks if a value is inside the table
 -- does lua really not have a default function for this?
 function Harvest.contains( table, value)
@@ -293,51 +244,8 @@ function Harvest.contains( table, value)
 	return false
 end
 
-
----
--- Checks any configured map addons.
--- @return true if any minimap addon detected, false in opposite case.
-local function isMapAddonCompatibilityRequired()
-    -- TODO Other addons
-    if AUI and AUI.Minimap or FyrMM then
-        return true
-    end
-end
-
 function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
 	Harvest.FireEvent(Harvest.FOUNDDATA, map, x, y, measurement, pinTypeId, itemId)
-end
-
-
-local function nodeCreatedOrUpdated(event, nodeTag, pinTypeId)
-	local nodeAdded = (event == Harvest.NODECREATED)
-	local nodeUpdated = (event == Harvest.NODEUPDATED)
-
-	if Harvest.IsHeatmapActive() then
-		HarvestHeat.RefreshHeatmap()
-		return
-	end
-
-	if isMapAddonCompatibilityRequired() then
-		if (nodeAdded or nodeUpdated)  then
-			-- compatibility with minimap plugins means that we always need to refresh all pins on each update.
-			-- TODO remove direct calls of refreshPins.
-			Harvest.RefreshPins( pinTypeId )
-		end
-	else
-		-- no addon is used, so we can refresh a single pin by removing and recreating it
-		if nodeUpdated then
-			RemovePinInAllControllers(pinTypeId, nodeTag)
-		end
-		-- the (re-)creation of the pin is only performed, if it wasn't hidden by the respawn timer
-		if Harvest.IsHiddenOnHarvest() then
-			Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-			HarvestDB.SetHidden(nodeTag, true)
-		else
-			HarvestDB.SetHidden(nodeTag, false)
-			CreatePinInAllControllers(pinTypeId, nodeTag)
-		end
-	end
 end
 
 function Harvest.OnUpdate(time)
@@ -346,21 +254,6 @@ function Harvest.OnUpdate(time)
 	if not Harvest.IsUpdateQueueEmpty() then
 		Harvest.UpdateUpdateQueue()
 		return
-	end
-
-	-- is there a pinType whose pins have to be refreshed? (ie was something harvested?)
-	if Harvest.needsRefresh then
-		-- only refresh the data after the loot window is closed
-		-- (AUI prevents refreshing pins while the loot window is open)
-		if LOOT_WINDOW.control:IsControlHidden() then
-			for pinTypeId,need in pairs(Harvest.needsRefresh) do
-				if need then
-					Harvest.RefreshPins( pinTypeId )
-				end
-			end
-			HarvestHeat.RefreshHeatmap()
-			Harvest.needsRefresh = nil
-		end
 	end
 
 	local interactionType = GetInteractionType()
@@ -423,42 +316,6 @@ function Harvest.OnUpdate(time)
 		end
 	end
 
-	-- update the respawn timer feature, if it hides pins close to the player
-	if Harvest.GetHiddenTime() > 0 and not Harvest.IsHiddenOnHarvest() then
-		local map, x, y, measurement = Harvest.GetLocation(true)
-		HarvestDB.ForCloseNodes(map, x, y, measurement, Harvest.UpdateHiddenTime)
-	end
-
-	-- TODO reimplement the feature of displaying only nearby pins in a way
-	-- that doesn't rely knowledge of the unterlying datastructure
-
-	--[[
-	-- update the currently visible pins, if the limited view radius is enabled in the options
-	if Harvest.lastDivisionUpdate < time - 5000 and Harvest.HasPinVisibleDistance() then
-		-- check if the player moved near the border of the currently drawn pins
-		-- if the player is near the border, we need to refresh the pins, so they are drawn again
-		local map, x, y, measurement = Harvest.GetLocation( true )
-		local divisionX, divisionY = Harvest.GetSubdivisionCoords( x, y, measurement )
-		if zo_abs(divisionX - Harvest.lastDivisionX) > 1 or zo_abs(divisionY - Harvest.lastDivisionY) > 1 then
-			Harvest.lastDivisionX = divisionX
-			Harvest.lastDivisionY = divisionY
-			Harvest.lastDivisionUpdate = time
-			Harvest.RefreshPins()
-		end
-	end
-	--]]
-end
-
--- harvestmap will hide recently visited pins for a given respawn time (time is set in the options)
-function Harvest.UpdateHiddenTime(nodeTag, pinTypeId)
-	local hidden = HarvestDB.IsHidden(nodeTag)
-	if not hidden then
-		HarvestDB.SetHidden(nodeTag, true)
-		Harvest.FireEvent(Harvest.NODEHIDDEN, nodeTag)
-		Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinType) )
-		RemovePinInAllControllers(pinTypeId, nodeTag) -- TODO move this to HarvestMapMarkers.lua via callback,
-		-- so everything pin related is there
-	end
 end
 
 -- this hack saves the name of the object that was last interacted with
@@ -554,17 +411,9 @@ function Harvest.OnLoad(eventCode, addOnName)
 	if addOnName ~= "HarvestMap" then
 		return
 	end
-	-- add callbacks
-	Harvest.RegisterForEvent(Harvest.NODECREATED, nodeCreatedOrUpdated)
-	Harvest.RegisterForEvent(Harvest.NODEUPDATED, nodeCreatedOrUpdated)
 	-- initialize temporary variables
 	Harvest.wasHarvesting = false
 	Harvest.action = nil
-	-- cache the ACE deserialized nodes
-	-- this way changing maps multiple times will create less lag
-	Harvest.lastDivisionX = -10
-	Harvest.lastDivisionY = -10
-	Harvest.lastDivisionUpdate = 0
 	-- mapCounter and compassCounter are used by the delayed pin creation procedure
 	-- these procedures are in the HarvestMapMarkers.lua and HarvestMapCompass.lua
 	Harvest.mapCounter = {}

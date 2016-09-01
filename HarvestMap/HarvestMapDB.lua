@@ -222,6 +222,49 @@ function HarvestDB.ForVisibleNodes(map, x, y, measurement, callback)
 end
 
 
+function HarvestDB.ForPrevAndCurVisiblePinsOfPinType(map, previousX, previousY, currentX, currentY, measurement,
+		pinTypeId, previousCallback, currentCallback)
+
+	local prevDivisionX, prevDivisionY = GetSubDivisionCoords( previousX, previousY, measurement )
+	local curDivisionX, curDivisionY = GetSubDivisionCoords( currentX, currentY, measurement )
+	if prevDivisionX == curDivisionX and prevDivisionY == curDivisionY then
+		return
+	end
+
+	local divisions = GetSubDivisionsOnMap( pinTypeId, map, measurement )
+	local division, nodeTag
+	-- first iteratoe over all pins that are no longer visible
+	for divisionX = prevDivisionX-2, prevDivisionX+2 do
+		for divisionY = prevDivisionY-2, prevDivisionY+2 do
+			-- check if the division is not part of the currently visible divisions
+			if zo_abs(divisionX - curDivisionX) > 2 or zo_abs(divisionY - curDivisionY) > 2 then
+				division = GetSubDivision(divisions, divisionX, divisionY)
+				if division then
+					for nodeIndex, node in pairs(division) do
+						nodeTag = node
+						previousCallback(nodeTag, pinTypeId)
+					end
+				end
+			end
+		end
+	end
+	-- now iterator over all pins that are visible from the current position but not from the previous position
+	for divisionX = curDivisionX-2, curDivisionX+2 do
+		for divisionY = curDivisionY-2, curDivisionY+2 do
+			-- check if the division is not part of the previously visible divisions
+			if zo_abs(divisionX - prevDivisionX) > 2 or zo_abs(divisionY - prevDivisionY) > 2 then
+				division = GetSubDivision(divisions, divisionX, divisionY)
+				if division then
+					for nodeIndex, node in pairs(division) do
+						nodeTag = node
+						currentCallback(nodeTag, pinTypeId)
+					end
+				end
+			end
+		end
+	end
+end
+
 function HarvestDB.ForAllNodesOfPinType(map, measurement, pinTypeId, callback)
 	local divisions = GetSubDivisionsOnMap( pinTypeId, map, measurement )
 	local nodeTag
@@ -340,7 +383,7 @@ function HarvestDB.ImportFromMap( map, data, target, checkPinType )
 				-- deserialize target data and clear the serialized target data table (we'll fill it again at the end)
 				targetData = {}
 				for _, node in pairs( target.data[ map ][ pinTypeId ] ) do
-					node = Harvest.Deserialize(node)
+					node = Deserialize(node)
 					if node then -- check if something went wrong while deserializing the node
 					insert(targetData, node)
 					end
@@ -349,12 +392,12 @@ function HarvestDB.ImportFromMap( map, data, target, checkPinType )
 				-- deserialize every new node and merge them with the old nodes
 				data[ pinTypeId ] = data[ pinTypeId ] or {}
 				for _, entry in pairs( data[ pinTypeId ] ) do
-					newNode = Harvest.Deserialize( entry )
+					newNode = Deserialize( entry )
 					if newNode then -- check if something went wrong while deserializing the node
 					-- If the node is new enough to be saved
 					if (Harvest.GetMaxTimeDifference() == 0) or ((timestamp - (newNode[Harvest.TIME] or 0)) <= Harvest.GetMaxTimeDifference()) then
 						-- If we have found this node already then we don't need to save it again
-						index = Harvest.GetNearestNodeIndex( targetData, newNode[Harvest.X], newNode[Harvest.Y] )
+						index = GetNearestNodeIndex( targetData, newNode[Harvest.X], newNode[Harvest.Y] )
 						if index then
 							oldNode = targetData[ index ]
 							-- add the node's item ids
@@ -395,7 +438,7 @@ function HarvestDB.ImportFromMap( map, data, target, checkPinType )
 				end
 				-- serialize the new data
 				for _, node in pairs( targetData ) do
-					insert(target.data[ map ][ pinTypeId ], Harvest.Serialize(node))
+					insert(target.data[ map ][ pinTypeId ], Serialize(node))
 				end
 			end
 		end
@@ -414,7 +457,7 @@ function HarvestDB.InitializeAfterUpdate()
 		local file = GetSpecialSaveFile( map )
 		if file ~= nil then
 			Harvest.AddToUpdateQueue(function()
-				Harvest.ImportFromMap( map, data, file )
+				HarvestDB.ImportFromMap( map, data, file )
 				HarvestDB.savedVars["nodes"].data[ map ] = nil
 				Harvest.Debug("Moving old data to the correct save files. " .. tostring(Harvest.GetQueuePercent()) .. "%")
 			end)
