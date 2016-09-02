@@ -96,18 +96,7 @@ function Harvest.GetPinId( pinType )
 	return tonumber( pinType )
 end
 
-local shouldNotSaveItemId = {
-	[Harvest.TROVE] = true,
-	[Harvest.OLDTROVE] = true,
-	[Harvest.HEAVYSACK] = true,
-	[Harvest.FISHING] = true,
-	[Harvest.CHESTS] = true,
-	[Harvest.JUSTICE] = true,
-	-- enchanting was removed with DB
-	-- because there is now only one type of harvesting node
-	-- for enchanting
-	[Harvest.ENCHANTING] = true,
-}
+
 function Harvest.ShouldSaveItemId(pinTypeId)
 	return not shouldNotSaveItemId[pinTypeId]
 end
@@ -143,7 +132,7 @@ local isNodeNameTrove = {
 	["thieves trove"] = true,
 	["diebesgut"] = true,
 	["trésor des voleurs"] = true,
-	["�?opoácêoé Òaéîèê"] = true,
+	["�?opoácêoé Òaéîèê"] = true,
 }
 
 function Harvest.IsTrove( nodeName )
@@ -330,8 +319,8 @@ local nodeName2PinType = {
 	["Thieves Trove"] = Harvest.TROVE,
 	["Diebesgut"] = Harvest.TROVE,
 	["Trésor des voleurs"] = Harvest.TROVE,
-	["�?opoácêoé Òaéîèê"] = Harvest.TROVE,
-	
+	["�?opoácêoé Òaéîèê"] = Harvest.TROVE,
+
 	["Iron Ore"] = Harvest.BLACKSMITH,
 	["High Iron Ore"] = Harvest.BLACKSMITH,
 	["Orichalc Ore"] = Harvest.BLACKSMITH,
@@ -388,7 +377,7 @@ local nodeName2PinType = {
 	["Kreshweed"] = Harvest.CLOTHING,
 	["Silverweed"] = Harvest.CLOTHING,
 	["Spinnenseide"] = Harvest.CLOTHING,
-	["Leere Bl�te"] = Harvest.CLOTHING,
+	["Leere Bl�te"] = Harvest.CLOTHING,
 	["Silver Weed"] = Harvest.CLOTHING,
 	["Kresh Weed"] = Harvest.CLOTHING,
 	["Ahnenseide"] = Harvest.CLOTHING,
@@ -400,7 +389,7 @@ local nodeName2PinType = {
 	["Jute"] = Harvest.CLOTHING,
 	["Kreshweed"] = Harvest.CLOTHING,
 	["Silverweed"] = Harvest.CLOTHING,
-	["Toile d'Araign�e"] = Harvest.CLOTHING,
+	["Toile d'Araign�e"] = Harvest.CLOTHING,
 	["Fleur du Vide"] = Harvest.CLOTHING,
 	["Silver Weed"] = Harvest.CLOTHING,
 	["Kresh Weed"] = Harvest.CLOTHING,
@@ -417,12 +406,12 @@ local nodeName2PinType = {
 	["Rune d'Aspect"] = Harvest.ENCHANTING,
 	["Rune d'Essence"] = Harvest.ENCHANTING,
 	["Rune de Puissance"] = Harvest.ENCHANTING,
-	
+
 	["Runestone"] = Harvest.ENCHANTING,
 	["Runenstein"] = Harvest.ENCHANTING,
 	["Pierre runique"] = Harvest.ENCHANTING,
 	["Pунa"] = Harvest.ENCHANTING,
-	
+
 
 	["Blessed Thistle"] = Harvest.ALCHEMY,
 	["Entoloma"] = Harvest.ALCHEMY,
@@ -446,22 +435,22 @@ local nodeName2PinType = {
 	["Nightshade"] = Harvest.ALCHEMY, -- needs to be confirmed!
 
 	["Benediktenkraut"] = Harvest.ALCHEMY,
-	["Gl�ckling"] = Harvest.ALCHEMY,
+	["Gl�ckling"] = Harvest.ALCHEMY,
 	["Wolfsauge"] = Harvest.ALCHEMY,
 	["Akelei"] = Harvest.ALCHEMY,
 	["Kornblume"] = Harvest.ALCHEMY,
 	["Drachendorn"] = Harvest.ALCHEMY,
-	["Brecht�ubling"] = Harvest.ALCHEMY,
+	["Brecht�ubling"] = Harvest.ALCHEMY,
 	["Koboldschemel"] = Harvest.ALCHEMY,
 	["Wiesenschaumkraut"] = Harvest.ALCHEMY,
-	["Leuchtt�ubling"] = Harvest.ALCHEMY,
+	["Leuchtt�ubling"] = Harvest.ALCHEMY,
 	["Bergblume"] = Harvest.ALCHEMY,
-	["Namiras F�ulnis"] = Harvest.ALCHEMY,
+	["Namiras F�ulnis"] = Harvest.ALCHEMY,
 	["Nirnwurz"] = Harvest.ALCHEMY,
 	["Stinkmorchel"] = Harvest.ALCHEMY,
 	["Violetter Tintling"] = Harvest.ALCHEMY,
 	["Wasserhyazinthe"] = Harvest.ALCHEMY,
-	["Wei�kappe"] = Harvest.ALCHEMY,
+	["Wei�kappe"] = Harvest.ALCHEMY,
 	["Wermut"] = Harvest.ALCHEMY,
 	["Nachtschatten"] = Harvest.ALCHEMY, -- needs to be confirmed!
 
@@ -470,7 +459,7 @@ local nodeName2PinType = {
 	["Noctuelle"] = Harvest.ALCHEMY,
 	["Ancolie"] = Harvest.ALCHEMY,
 	["Bleuet"] = Harvest.ALCHEMY,
-	["�?pine-de-Dragon"] = Harvest.ALCHEMY,
+	["�?pine-de-Dragon"] = Harvest.ALCHEMY,
 	["Russule Emetique"] = Harvest.ALCHEMY,
 	["Pied-de-Lutin"] = Harvest.ALCHEMY,
 	["Cardamine des Prés"] = Harvest.ALCHEMY,
@@ -510,20 +499,20 @@ local nodeName2PinType = {
 	["Rubinesche"] = Harvest.WOODWORKING,
 
 	["Frêne"] = Harvest.WOODWORKING,
-	["Fr�ne"] = Harvest.WOODWORKING,
+	["Fr�ne"] = Harvest.WOODWORKING,
 	["Hêtre"] = Harvest.WOODWORKING,
-	["H�tre"] = Harvest.WOODWORKING,
+	["H�tre"] = Harvest.WOODWORKING,
 	["Bouleau"] = Harvest.WOODWORKING,
 	["Hickory"] = Harvest.WOODWORKING,
 	["Acajou"] = Harvest.WOODWORKING,
-	["�?rable"] = Harvest.WOODWORKING,
-	["�rable"] = Harvest.WOODWORKING,
+	["�?rable"] = Harvest.WOODWORKING,
+	["�rable"] = Harvest.WOODWORKING,
 	["Bois de Nuit"] = Harvest.WOODWORKING,
 	["Chêne"] = Harvest.WOODWORKING,
-	["Ch�ne"] = Harvest.WOODWORKING,
+	["Ch�ne"] = Harvest.WOODWORKING,
 	["If"] = Harvest.WOODWORKING,
 	["Frêne Roux"] = Harvest.WOODWORKING,
-	["Fr�ne Roux"] = Harvest.WOODWORKING,
+	["Fr�ne Roux"] = Harvest.WOODWORKING,
 
 	["Pure Water"] = Harvest.WATER,
 	["Water Skin"] = Harvest.WATER,

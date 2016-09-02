@@ -304,8 +304,7 @@ function Harvest.InitializeMapMarkers()
 	for index, pinTypeId in pairs( Harvest.PINTYPES ) do
 		Harvest.InitializeMapPinType( pinTypeId )
 	end
-
-	Harvest.RegisterForEvent(Harvest.NODEDELETED, function(event, nodeTag, pinTypeId)
+	CALLBACK_MANAGER:RegisterCallback(HarvestEvents.NODE_DELETED_EVENT, function(event, nodeTag, pinTypeId)
 		RemovePinInAllControllers(nodeTag, pinTypeId)
 	end)
 
@@ -335,5 +334,11 @@ function Harvest.InitializeMapMarkers()
 		false,
 		Harvest.savedVars["settings"].isPinTypeVisible
 	)
+
+	-- initialize each compass pin type
+	for _, pinTypeId in pairs( Harvest.PINTYPES ) do
+		Harvest.InitializeCompassPinType( pinTypeId )
+		COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
+	end
 
 end

@@ -245,7 +245,7 @@ function Harvest.contains( table, value)
 end
 
 function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
-	Harvest.FireEvent(Harvest.FOUNDDATA, map, x, y, measurement, pinTypeId, itemId)
+	CALLBACK_MANAGER:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, map, x, y, measurement, pinTypeId, itemId) -- TODO Another request which should be handled by NodeDataResolver
 end
 
 function Harvest.OnUpdate(time)

@@ -54,6 +54,8 @@ local AS = LibStub("AceSerializer-3.0h")
 --
 --]]
 
+
+-- TODO list:
 -- The deserialized cache datastructure could be optimized in the future via something like this:
 HarvestDB.database = {
 	xLocal = {}, -- nodeTag -> x coordinate in local map coordinates
@@ -76,6 +78,65 @@ local GetNearestNodeIndex, ShouldMergeNodes, LoadToCache, Serialize, Deserialize
 local CheckNodeVersion, GetSaveFile, GetSpecialSaveFile, IsNodeValid
 
 -- TODO split module for several files. All iterators could be initialized separately. Root module should contain only "interface"
+
+
+------------------------------------------------------------------------------------------------------------------------
+-- Cache related logic -------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+--[[
+-- TODO list ( to not forget tomorrow ):
+ - Update node operation with new cache usage -
+ - Check compatibility during loading from serialized data -
+ - Check fields what we need in runtime and in static storage, seems that there is an difference -
+ - Debug this sh* :D -
+ - Check todo's that all critical issues fixed -
+ ]]
+---
+-- Generator of identifiers for nodes.
+--
+local idGenerator = HarvestNodeIdGenerator:new()
+
+---
+-- Cache of nodes indexed by nodes identifiers.
+-- Contains node for current map, uses options(measurments).
+--
+local idCache
+
+--- Check that cache for specified map exists and creates if not.
+-- @param map target map instance.
+-- @param options options for cache.
+--
+local function checkAndUpdateCache(map, options)
+	-- if current cache not related with current map - create new one.
+	-- TODO we can persist list of last previous caches
+	-- if there is no cache - create.
+	if idCache and map ~= idCache.map or not idCache then
+		local o = table.copy(options) -- Options should be immutable for cache. To avoid unexpected behaviour.
+		idCache = HarvestNodesCache:new(map, o)
+	end
+	-- TODO check other types of cache
+end
+
+--- Adds data to all caches.
+-- @param type type of node - typeId.
+-- @param timestamp timestamp for tracking of age.
+-- @param x local abscissa of node.
+-- @param y local ordinate of node.
+-- @param xg global abscissa of node.
+-- @param yg global ordinate of node.
+-- @param items items which could be found in this node.
+-- @return generated identifier of added node.
+--
+local function addNodeToCache(type, timestamp, x, y, xg, yg, items)
+	local id = idGenerator:generate:generate(type, timestamp, x, y, xg, yg, items)
+	idCache:add(id, type, timestamp, x, y, xg, yg, items)
+	return id
+end
+
+------------------------------------------------------------------------------------------------------------------------
+-- Cache related logic END ---------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
 
 
 ---
@@ -540,94 +601,6 @@ function ShouldMergeNodes( nodes, x, y, measurement )
 	return nil, nil, nil
 end
 
----
--- Merges properties of an existing node with data from update event.
--- @param node existing node
--- @param x abscissa of update event.
--- @param y ordinate of update event.
--- @param measurement data of event.
--- @param pinTypeId type of resource from event.
--- @param itemId  unique id of item from event.
--- @param stamp event timestamp.
---
-local function mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stamp)
-	local nodeUpdated = true -- TODO Rework this. Always updates coordinates.
-	local nodeData = node.data
-	-- update the timestamp of the nodes items
-	if itemId and Harvest.ShouldSaveItemId(pinTypeId) then
-		nodeData[Harvest.ITEMS] = nodeData[Harvest.ITEMS] or {}
-		nodeData[Harvest.ITEMS][itemId] = stamp
-	end
-
-	-- update the pins position and version
-	-- the old position could be outdated while the new one was just confirmed to be correct
-	nodeData[Harvest.TIME] = stamp
-	-- TODO discuss that it may be better to add some threshhold, before we update old coordinates.
-	nodeData[Harvest.X] = x
-	nodeData[Harvest.Y] = y
-	node.global = { Harvest.LocalToGlobal(x, y, measurement) }
-	nodeData[ Harvest.VERSION ] = Harvest.nodeVersion
-	return nodeUpdated
-end
-
----
--- Adds new node to specified collection.
--- @param nodes collection of nodes.
--- @param index index for new node.
--- @param x abscissa of update event.
--- @param y ordinate of update event.
--- @param measurement data of event.
--- @param nodeData data for new node.
--- @return created node.
---
-local function addNodeData(nodes, index, x, y, measurement, nodeData)
-	-- the new nodes needs to be saved at the same index in both tables.
-	-- we need to save the data in serialized form in the save file,
-	-- but also as deserialized table in the cache table for faster access.
-	local divisionX, divisionY = GetSubDivisionCoords( x, y, measurement )
-	local division = GetSubDivision(nodes, divisionX, divisionY)
-	-- saving the node in deserialized form
-	local node = { data = nodeData,
-		time = GetFrameTimeSeconds(), -- time for the respawn timer
-		global = { Harvest.LocalToGlobal(x, y, measurement) } } -- global coordinates for distance calculations
-	division[index] = node
-	return node
-end
-
----
--- Validates input data of any pin update event.
--- @param map
--- @param x
--- @param y
--- @param measurement
--- @param pinTypeId
--- @param itemId
--- @return true for valid data, false for empty or values with wrong format.
---
-local function validatePinData(map, x, y, measurement, pinTypeId, itemId)
-	if not map then
-		Harvest.Debug("Validation of data failed: map is nil")
-		return false
-	end
-	if type(x) ~= "number" or type(y) ~= "number" then
-		Harvest.Debug("Validation of data failed: coordinates aren't numbers")
-		return false
-	end
-	if not measurement then
-		Harvest.Debug("Validation of data failed: measurement is nil")
-		return false
-	end
-	if not pinTypeId then
-		Harvest.Debug("Validation of data failed: pin type id is nil")
-		return false
-	end
-	-- If the map is on the blacklist then don't save the data
-	if Harvest.IsMapBlacklisted(map) then
-		Harvest.Debug("Validation of data failed: map " .. tostring(map) .. " is blacklisted")
-		return false
-	end
-	return true -- Everything ok.
-end
 
 ---
 -- creates a new node with the given data and saves it in cached and serialized form
@@ -844,9 +817,13 @@ function GetSubDivisionsOnMap( pinTypeId, map, measurement )
 	return LoadToCache( pinTypeId, map, measurement ) or {}
 end
 
+
 -- data is stored as ACE strings
 -- this functions deserializes the strings and saves the results in the cache
+-- TODO split this function, a lot of responsibilities for one function.
 function LoadToCache( pinTypeId, map, measurement )
+	checkAndUpdateCache(map, measurement)
+
 	if not HarvestDB.cache[ map ] then
 		HarvestDB.lastCachedIndex = HarvestDB.lastCachedIndex + 1
 		for map, data in pairs(HarvestDB.cache) do
@@ -878,7 +855,8 @@ function LoadToCache( pinTypeId, map, measurement )
 			deserializedNode = Deserialize( node )
 			validNode = false
 			if deserializedNode and ((Harvest.GetMaxTimeDifference() == 0) or ((timestamp - (deserializedNode[Harvest.TIME] or 0)) < Harvest.GetMaxTimeDifference())) then
-				newNode = { data = deserializedNode, time = 0, global = { localToGlobal(deserializedNode[Harvest.X], deserializedNode[Harvest.Y], measurement) } }
+				-- TODO FIXME why time always 0?
+				newNode = { typeId = pinTypeId, data = deserializedNode, time = 0, global = { localToGlobal(deserializedNode[Harvest.X], deserializedNode[Harvest.Y], measurement) } }
 				validNode, changedNode = CheckNodeVersion( pinTypeId, newNode, map, measurement )
 				if validNode then
 					cachedNodes[index] = newNode
@@ -938,7 +916,23 @@ function LoadToCache( pinTypeId, map, measurement )
 
 		local subdivisions = { width = zo_floor(1 / Harvest.GetPinVisibleDistance() * measurement.scaleX) + 1 }
 		local subdivisionX, subdivisionY, index
+		local identifier, type, timestamp, x, y, xg, yg, items
+		-- TODO move to another place
+		local function createItemsData(itemsData)
+			return {} -- TODO implement adapter for serialized data to table {itemId, timestamp}
+		end
+
 		for index, node in pairs(cachedNodes) do
+			-- TODO check arguments for generator.
+			type = node.typeId
+			timestamp = node.time
+			x = node.data[Harvest.X]
+			y = node.data[Harvest.Y]
+			xg = node.globalX -- TODO i'm not sure here
+			yg = node.globalY -- and here
+			items = createItemsData(node.data[Harvest.ITEMS]) -- TODO FIXME see function defention
+			addNodeToCache(type, timestamp, x, y, xg, yg, items)
+
 			subdivisionX, subdivisionY = GetSubDivisionCoords(node.data[1], node.data[2], measurement)
 			subdivisions[subdivisionX + subdivisionY * subdivisions.width] = subdivisions[subdivisionX + subdivisionY * subdivisions.width] or {}
 			subdivisions[subdivisionX + subdivisionY * subdivisions.width][index] = node
