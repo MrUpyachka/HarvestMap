@@ -112,13 +112,13 @@ local itemId2Tooltip = {
 		[30165] = "Nirnroot",
 		[30166] = "Water Hyacinth",
 		[77590] = "Nightshade",
-		
+
 		[802] = "Maple",
 		[521] = "Oak",
 		[23117] = "Beech",
 		[23118] = "Hickory",
 		[23119] = "Yew",
-		
+
 		[818] = "Birch",
 		[4439] = "Ashtree",
 		[23137] = "Mahogany",
@@ -304,13 +304,13 @@ local itemId2Tooltip = {
 		[30164] = "Вoдocбop",
 		[30165] = "Кopeнь Ниpнa",
 		[30166] = "Вoдный гиaцинт",
-		
+
 		[802] = "Клeн",
 		[521] = "Дуб",
 		[23117] = "Бук",
 		[23118] = "Гикopи",
 		[23119] = "Тиc",
-		
+
 		[818] = "Бepeзa",
 		[4439] = "Яceнь",
 		[23137] = "Кpacнoe дepeвo",
@@ -562,7 +562,7 @@ function Harvest.GetLocalizedZoneItemNames(zone, itemIds, alliance, pinTypeId, c
 					end
 				end
 			end
-			
+
 			-- add ressources that should spawn in this zone (in respect to alliance/cadwell's silver/cadwell's gold)
 			local zoneRank = (zoneAllianceRank[zone] or {})[alliance]
 			if zoneRank then
@@ -633,25 +633,25 @@ end
 
 function Harvest.GetLocalizedTooltip( pin )
 	local result = {}
-	
+
 	local pinTypeId = Harvest.GetPinId( LMP.pinManager.customPins[pin.m_PinType].pinTypeString )
-	
+
 	if pinTypeId == Harvest.TOUR then
 		table.insert(result, "Next ressource of your farming tour" )
 		return result
 	end
-	
+
 	if Harvest.IsDebugEnabled() then
 		table.insert(result, "Click to delete:" )
 	end
 
 	local nodeTag = pin.m_PinTag
 	local itemIds = HarvestDB.GenerateItemTable(nodeTag)
-	
+
 	local lines = {}
 	if Harvest.AreExactItemsShown() then
 		local text
-		if Harvest.ShouldSaveItemId(pinTypeId) then
+		if ItemUtils.isItemsListRequired(pinTypeId) then
 			for itemId, _ in pairs( itemIds ) do
 				text = Harvest.GetLocalizedExactTooltip( itemId, pinTypeId )
 				if text then

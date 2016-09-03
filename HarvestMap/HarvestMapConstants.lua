@@ -96,11 +96,6 @@ function Harvest.GetPinId( pinType )
 	return tonumber( pinType )
 end
 
-
-function Harvest.ShouldSaveItemId(pinTypeId)
-	return not shouldNotSaveItemId[pinTypeId]
-end
-
 -- maps that shouldn't display pins
 local mapBlacklist = {
 	["tamriel/tamriel"] = true,
@@ -132,9 +127,10 @@ local isNodeNameTrove = {
 	["thieves trove"] = true,
 	["diebesgut"] = true,
 	["trésor des voleurs"] = true,
-	["�?opoácêoé Òaéîèê"] = true,
+	["Вopoвcкиe тaйники"] = true,
 }
 
+-- TODO process chests, heavy stacks and thiefe troves by different logic based on loot handling and isStolen flag.
 function Harvest.IsTrove( nodeName )
 	return isNodeNameTrove[ zo_strlower( nodeName) ]
 end

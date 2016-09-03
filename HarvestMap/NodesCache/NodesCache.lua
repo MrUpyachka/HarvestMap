@@ -92,3 +92,4 @@ function HarvestNodesCache:delete(id)
     self.items[id] = nil
     return type, timestamp, x, y, xg, yg, items
 end
+

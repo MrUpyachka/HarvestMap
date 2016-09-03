@@ -146,17 +146,17 @@ function Harvest.UpdateItemIdList( saveFile )
 		Harvest.UpdateItemIdList( HarvestDB.savedVars["nodes"] )
 		return
 	end
-	
+
 	if (saveFile.dataVersion or 0) >= 11 then
 		return
 	end
-	
+
 	-- remove any old data in the thieves trove field.
 	-- there might be some stuff like books left in very old save files
 	--for map, data in pairs(saveFile.data) do
 	--	data[Harvest.TROVE] = {}
 	--end
-	
+
 	Harvest.AddToUpdateQueue(function()
 		d("HarvestMap is updating pre-Thieves-Guild data for a save file.")
 		Harvest.DelayedUpdateItemIdList(saveFile, nil, nil, nil, nil, nil)
@@ -209,7 +209,7 @@ function Harvest.DelayedUpdatePreDBData(saveFile, pinTypes, nodes, mapIndex, pin
 			node[3] = nil
 			-- change the itemid list to a itemid -> timestamp table
 			-- create itemid list if it doesn't exist (chests, fishing holes etc)
-			if not node[4] or not Harvest.ShouldSaveItemId(pinTypeId) then
+			if not node[4] or not ItemUtils.isItemsListRequired(pinTypeId) then
 				node[4] = {}
 			end
 			-- i got reports of savefiles that are still in pre TG format
@@ -228,7 +228,7 @@ function Harvest.DelayedUpdatePreDBData(saveFile, pinTypes, nodes, mapIndex, pin
 		else -- node couldn't be deserialized, delete the corrupted data!
 			nodes[nodeIndex] = nil
 		end
-		
+
 		-- update stuff ends here
 		nodeIndex, entry = next(nodes, nodeIndex)
 	end
@@ -279,7 +279,7 @@ function Harvest.DelayedUpdateItemIdList(saveFile, pinTypes, nodes, mapIndex, pi
 				changed = true
 			end
 			-- no itemIds for fishing, chest and thieves troves
-			if not Harvest.ShouldSaveItemId(pinTypeId) then
+			if not ItemUtils.isItemsListRequired(pinTypeId) then
 				node[4] = nil
 				changed = true
 			end
@@ -289,7 +289,7 @@ function Harvest.DelayedUpdateItemIdList(saveFile, pinTypes, nodes, mapIndex, pi
 		else -- node couldn't be deserialized, delete the corrupted data!
 			nodes[nodeIndex] = nil
 		end
-		
+
 		-- update stuff ends here
 		nodeIndex, entry = next(nodes, nodeIndex)
 	end
@@ -324,6 +324,7 @@ function Harvest.DelayedUpdatePreOrsiniumData(saveFile, pinTypes, nodes, mapInde
 			nodeIndex, entry = next(nodes, nodeIndex)
 		end
 		if type(entry) == "table" then
+			-- TODO FIXME no such method, logic moved to private method of HarvestDB
 			nodes[nodeIndex] = Harvest.Serialize(entry)
 		end
 		nodeIndex, entry = next(nodes, nodeIndex)

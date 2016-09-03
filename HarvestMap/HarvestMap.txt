@@ -34,8 +34,9 @@ Event/HarvestEvents.lua
 Item/ItemUtils.lua
 ## Node id generator.
 NodesCache/NodeIdGenerator.lua
-## Cache implementation.
+## Cache implementations.
 NodesCache/NodesCache.lua
+NodesCache/LocationSortedCache.lua
 ## Handler of events TODO better solution?
 HarvestMapCallback.lua
 ## Implementation of storage with simple interface to get nodes.
