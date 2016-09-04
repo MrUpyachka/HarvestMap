@@ -14,10 +14,9 @@ HarvestDbController = {}
 -- Also we need to have async entity which tracks changes of map (zone/location/level).
 
 
-local DELETE_NODE_REQUEST = HarvestEvents.DELETE_NODE_REQUEST
 local NODE_DELETED_EVENT = HarvestEvents.NODE_DELETED_EVENT
-local ADD_NODE_REQUEST = HarvestEvents.ADD_NODE_REQUEST
 local NODE_ADDED_EVENT = HarvestEvents.NODE_ADDED_EVENT
+local NODE_UPDATED_EVENT = HarvestEvents.NODE_UPDATED_EVENT
 
 --- Creates an instance of controller.
 -- @param s storage of nodes.
@@ -46,62 +45,46 @@ function HarvestDbController:onDeleteNodeRequest(map, nodeTag)
 end
 
 ---
--- Validates input data of any pin update event.
--- @param map
--- @param x
--- @param y
--- @param measurement
--- @param pinTypeId
--- @param itemId
--- @return true for valid data, false for empty or values with wrong format.
---
-local function validatePinData(map, x, y, measurement, pinTypeId, itemId)
-    if not map then
-        Harvest.Debug("Validation of data failed: map is nil")
-        return false
-    end
-    if type(x) ~= "number" or type(y) ~= "number" then
-        Harvest.Debug("Validation of data failed: coordinates aren't numbers")
-        return false
-    end
-    if not measurement then
-        Harvest.Debug("Validation of data failed: measurement is nil")
-        return false
-    end
-    if not pinTypeId then
-        Harvest.Debug("Validation of data failed: pin type id is nil")
-        return false
-    end
-    -- If the map is on the blacklist then don't save the data
-    if Harvest.IsMapBlacklisted(map) then
-        Harvest.Debug("Validation of data failed: map " .. tostring(map) .. " is blacklisted")
-        return false
-    end
-    return true -- Everything ok.
-end
-
----
 -- Callback method to handle request to add node.
 -- @param map map which contain interest node.
 -- @param x abscissa of point.
 -- @param y ordinate of point.
--- @param measurement the measurement of the map, used to properly calculate distances between the new and the old pins
--- @param pinTypeId
--- @param itemId
+-- @param xg global abscissa of node.
+-- @param yg global ordinate of node.
+-- @param type type of detected node.
+-- @param timestamp request firing time. In milliseconds.
+-- @param items discovered items.
 --
-function HarvestDbController:onAddNodeRequest(map, x, y, measurement, pinTypeId, itemId)
-    if not validatePinData(map, x, y, measurement, pinTypeId, itemId) then
-        return
-    end
-    local index, node = HarvestDB.SaveData(map, x, y, measurement, pinTypeId, itemId)
-    self.callbackController:FireCallbacks(NODE_ADDED_EVENT, node.tag) -- TODO FIXME pinTag?
+function HarvestDbController:onAddNodeRequest(map, x, y, xg, yg, type, timestamp, items)
+    HarvestDebugUtils.debug("Try to add node with type " .. type)
+    local id = self.storage.addNode(type, timestamp, x, y, xg, yg, items)
+    self.callbackController:FireCallbacks(NODE_ADDED_EVENT, id)
+    HarvestDebugUtils.debug("Node of type " .. type .. " added with id: " .. id)
+end
+
+---
+-- Callback method to handle request to update node.
+-- @param id unique identifier of node.
+-- @param timestamp timestamp for tracking of age.
+-- @param x local abscissa of node.
+-- @param y local ordinate of node.
+-- @param xg global abscissa of node.
+-- @param yg global ordinate of node.
+-- @param item discovered item.
+--
+function HarvestDbController:onUpdateNodeRequest(id, timestamp, x, y, xg, yg, item)
+    HarvestDebugUtils.debug("Try to update node with id " .. id)
+    self.storage.updateNode(id, timestamp, x, y, xg, yg, item)
+    self.callbackController:FireCallbacks(NODE_UPDATED_EVENT, id)
+    HarvestDebugUtils.debug("Node with id " .. id .. " updated")
 end
 
 ---
 -- Starts listening of callbacks and their processing.
 --
 function HarvestDbController:start()
-    self.callbackController:RegisterCallback(DELETE_NODE_REQUEST, self.onDeleteNodeRequest)
-    self.callbackController:RegisterCallback(ADD_NODE_REQUEST, self.onAddNodeRequest)
+    self.callbackController:RegisterCallback(HarvestEvents.DELETE_NODE_REQUEST, self.onDeleteNodeRequest)
+    self.callbackController:RegisterCallback(HarvestEvents.ADD_NODE_REQUEST, self.onAddNodeRequest)
     -- TODO register for other callbacks
+    HarvestDebugUtils.debug("Harvest DB controller started.")
 end

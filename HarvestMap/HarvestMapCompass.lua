@@ -29,7 +29,7 @@ function Harvest.AddCompassCallback( pinTypeId, g_mapPinManager )
 		return
 	end
 
-	local map, x, y, measurement = Harvest.GetLocation( true )
+	local map, x, y, measurement = HarvestMapUtils.GetMapInformation( true )
 
 	local pinType = Harvest.GetPinType( pinTypeId )
 	HarvestDB.ForVisibleNodesOfPinType(map, x, y, measurement, pinTypeId,

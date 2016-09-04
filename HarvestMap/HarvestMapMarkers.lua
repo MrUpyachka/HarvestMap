@@ -10,13 +10,6 @@ local pairs = _G["pairs"]
 
 
 
---[[
--- Just an example of howto use controller.
-]]--
-local dbController = HarvestDbController:new(HarvestDB, CALLBACK_MANAGER) -- Eso global manager used, just for example.
-dbController:start() -- Now its started and listens for requests.
-
-
 ---
 -- Function-adapter to invoke RefreshPins for all used pins controllers.
 -- @param pinTypeId type ID of pins to refresh.
@@ -87,7 +80,7 @@ local function nodeCreatedOrUpdated(event, nodeTag, pinTypeId)
 		end
 		-- the (re-)creation of the pin is only performed, if it wasn't hidden by the respawn timer
 		if Harvest.IsHiddenOnHarvest() then
-			Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinTypeId) )
+			HarvestDebugUtils.debug( "respawn timer has hidden a pin of pin type " .. tostring(pinTypeId) )
 			HarvestDB.SetHidden(nodeTag, true)
 		else
 			HarvestDB.SetHidden(nodeTag, false)
@@ -102,7 +95,7 @@ function Harvest.UpdateHiddenTime(nodeTag, pinTypeId)
 	if not hidden then
 		HarvestDB.SetHidden(nodeTag, true)
 		Harvest.FireEvent(Harvest.NODEHIDDEN, nodeTag)
-		Harvest.Debug( "respawn timer has hidden a pin of pin type " .. tostring(pinTypeId) )
+		HarvestDebugUtils.debug( "respawn timer has hidden a pin of pin type " .. tostring(pinTypeId) )
 		RemovePinInAllControllers(pinTypeId, nodeTag)
 	end
 end
@@ -133,14 +126,14 @@ function Harvest.UpdateMapPins( timeInMs )
 
 	-- update the respawn timer feature, if it hides pins close to the player
 	if Harvest.GetHiddenTime() > 0 and not Harvest.IsHiddenOnHarvest() then
-		local map, x, y, measurement = Harvest.GetLocation(true)
+		local map, x, y, measurement = HarvestMapUtils.GetMapInformation(true)
 		HarvestDB.ForCloseNodes(map, x, y, measurement, Harvest.UpdateHiddenTime)
 	end
 
 	if Harvest.HasPinVisibleDistance() then
 		-- update the currently visible pins, if the limited view radius is enabled in the options
 		if Harvest.lastViewedUpdate < timeInMs - 5000 and Harvest.HasPinVisibleDistance() then
-			local map, x, y, measurement = Harvest.GetLocation( true )
+			local map, x, y, measurement = HarvestMapUtils.GetMapInformation( true )
 
 			for _, pinTypeId in pairs(Harvest.PINTYPES) do
 				if Harvest.IsPinTypeVisible( pinTypeId ) then
@@ -179,16 +172,16 @@ end
 function Harvest.PinTypeRefreshCallback( pinTypeId )
 	-- data is still being manipulated, better if we don't access it yet
 	if not Harvest.IsUpdateQueueEmpty() then
-		Harvest.Debug("step1: your data is still being refactored/updated" )
+		HarvestDebugUtils.debug("step1: your data is still being refactored/updated" )
 		if Harvest.mapPinIterators then
 			Harvest.mapPinIterators[pinTypeId] = nil
 		end
 		return
 	end
 
-	Harvest.Debug("Refresh pins for pin type id " .. tostring(pinTypeId) )
+	HarvestDebugUtils.debug("Refresh pins for pin type id " .. tostring(pinTypeId) )
 	if not Harvest.IsPinTypeVisible( pinTypeId ) or Harvest.IsHeatmapActive() then
-		Harvest.Debug("step1: pins type is hidden or heatmap mode is active" )
+		HarvestDebugUtils.debug("step1: pins type is hidden or heatmap mode is active" )
 		if Harvest.mapPinIterators then
 			Harvest.mapPinIterators[pinTypeId] = nil
 		end
@@ -196,7 +189,7 @@ function Harvest.PinTypeRefreshCallback( pinTypeId )
 	end
 
 
-	local map, x, y, measurement = Harvest.GetLocation( true )
+	local map, x, y, measurement = HarvestMapUtils.GetMapInformation( true )
 	Harvest.lastViewedX = x
 	Harvest.lastViewedY = y
 
@@ -235,7 +228,7 @@ function Harvest.InitializeMapPinType( pinTypeId )
 			pinType,
 			HarvestFarm.MapCallback,
 			nil,
-			Harvest.GetMapPinLayout( pinTypeId ),
+			HarvestMapUtils.getCurrentMapPinLayout( pinTypeId ),
 			Harvest.tooltipCreator
 		)
 	else
@@ -245,7 +238,7 @@ function Harvest.InitializeMapPinType( pinTypeId )
 				Harvest.PinTypeRefreshCallback( pinTypeId )
 			end,
 			nil,
-			Harvest.GetMapPinLayout( pinTypeId ),
+			HarvestMapUtils.getCurrentMapPinLayout( pinTypeId ),
 			Harvest.tooltipCreator
 		)
 
@@ -269,7 +262,7 @@ local nameFun = function( pin )
 	return table.concat(lines, "\n")
 end
 
-Harvest.debugHandler = {
+HarvestDebugUtils.debugHandler = {
 	{
 		name = nameFun,
 		callback = function(pin)
@@ -281,7 +274,7 @@ Harvest.debugHandler = {
 				return
 			end
 			local pinType, pinTag = pin:GetPinTypeAndTag()
-			local map = Harvest.GetMap()
+			local map = HarvestMapUtils.getCurrentMap()
             CALLBACK_MANAGER:FireCallbacks(HarvestEvents.DELETE_NODE_REQUEST, map, pinTag) -- Just fire event into the same callback manager.
 		end,
 		show = function() return true end,
@@ -320,11 +313,11 @@ function Harvest.InitializeMapMarkers()
 			end
 			for _, pinTypeId in pairs( Harvest.PINTYPES ) do
 				local pinType = Harvest.GetPinType( pinTypeId )
-				LMP:SetClickHandlers(pinType, Harvest.debugHandler, nil)
+				LMP:SetClickHandlers(pinType, HarvestDebugUtils.debugHandler, nil)
 			end
 		end,
 		nil,
-		Harvest.GetMapPinLayout( 1 ),
+		HarvestMapUtils.getCurrentMapPinLayout( 1 ),
 		Harvest.tooltipCreator
 	)
 	-- debug pin type. when enabled clicking on pins deletes them

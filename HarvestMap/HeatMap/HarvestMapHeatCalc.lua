@@ -49,7 +49,7 @@ function HarvestHeat.CalculateHeatMap()
 		end
 	end
 	local viewedMap = true
-	local mapName, x, y, measurement = Harvest.GetLocation( viewedMap )
+	local mapName, x, y, measurement = HarvestMapUtils.GetMapInformation( viewedMap )
 	for _, pinTypeId in pairs(harvest.PINTYPES) do
 		if harvest.IsPinTypeVisible( pinTypeId ) then
 			HarvestDB.ForAllNodes(mapName, measurement, function(nodeTag, pinTypeId)
@@ -60,7 +60,7 @@ function HarvestHeat.CalculateHeatMap()
 			end)
 		end
 	end
-	
+
 	-- convolution with stride 5
 	harvestHeat.maxHeat = 0
 	harvestHeat.heatMap = {}

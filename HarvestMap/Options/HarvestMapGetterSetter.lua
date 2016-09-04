@@ -232,11 +232,11 @@ function Harvest.GetCompassPinLayout( pinTypeId )
 	return Harvest.savedVars["settings"].compassLayouts[ pinTypeId ]
 end
 
-function Harvest.GetMapLayouts()
+function HarvestMapUtils.getCurrentMapLayouts()
 	return Harvest.savedVars["settings"].mapLayouts
 end
 
-function Harvest.GetMapPinLayout( pinTypeId )
+function HarvestMapUtils.getCurrentMapPinLayout( pinTypeId )
 	return Harvest.savedVars["settings"].mapLayouts[ pinTypeId ]
 end
 
@@ -302,7 +302,7 @@ function Harvest.SetDisplayedMinDistanceBetweenPins( value )
 	Harvest.savedVars["settings"].minDistanceBetweenPins = value * 0.000001
 end
 
-function Harvest.GetMapPinSize( pinTypeId )
+function HarvestMapUtils.getCurrentMapPinSize( pinTypeId )
 	return Harvest.savedVars["settings"].mapLayouts[ pinTypeId ].size
 end
 

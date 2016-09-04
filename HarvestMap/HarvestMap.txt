@@ -30,6 +30,8 @@ Libs/CustomCompassPins/CustomCompassPins.lua
 HarvestMapConstants.lua
 ## Event names after.
 Event/HarvestEvents.lua
+## Debugging
+Debug/DebugUtils.lua
 ## Utils for drop items handling.
 Item/ItemUtils.lua
 ## Node id generator.
@@ -37,10 +39,14 @@ NodesCache/NodeIdGenerator.lua
 ## Cache implementations.
 NodesCache/NodesCache.lua
 NodesCache/LocationSortedCache.lua
+## Utilities for map processing.
+Map/MapUtils.lua
 ## Handler of events TODO better solution?
 HarvestMapCallback.lua
 ## Implementation of storage with simple interface to get nodes.
 HarvestMapDB.lua
+## Resolver of node data. (as existing or not)
+DB/NodeResolver.lua
 ## Controller for async processing of events with nodes.
 DB/HarvestDbController.lua
 ## Root object.

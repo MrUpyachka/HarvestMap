@@ -44,7 +44,7 @@ local function CreateSizeSlider( pinTypeId )
 		min = 16,
 		max = 64,
 		getFunc = function()
-			return Harvest.GetMapPinSize( pinTypeId )
+			return HarvestMapUtils.getCurrentMapPinSize( pinTypeId )
 		end,
 		setFunc = function( value )
 			Harvest.SetMapPinSize( pinTypeId, value )
@@ -81,7 +81,7 @@ function Harvest.InitializeOptions()
 	}
 
 	local optionsTable = setmetatable({}, { __index = table })
-	
+
 	if RequestOpenUnsafeURL then
 		-- if the new URL feature exists (added in API version 16)
 		optionsTable:insert({
@@ -90,34 +90,34 @@ function Harvest.InitializeOptions()
 			text = Harvest.GetLocalization("esouidescription"),
 			width = "full",
 		})
-		
+
 		optionsTable:insert({
 			type = "button",
 			name = Harvest.GetLocalization("openesoui"),
 			func = function() RequestOpenUnsafeURL("http://www.esoui.com/downloads/info57") end,
 			width = "half",
 		})
-		
+
 		optionsTable:insert({
 			type = "description",
 			title = nil,
 			text = Harvest.GetLocalization("mergedescription"),
 			width = "full",
 		})
-		
+
 		optionsTable:insert({
 			type = "button",
 			name = Harvest.GetLocalization("openmerge"),
 			func = function() RequestOpenUnsafeURL("http://www.teso-harvest-merge.de") end,
 			width = "half",
 		})
-		
+
 		optionsTable:insert({
 		type = "header",
 		name = "",
 	})
 	end
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("timedifference"),
@@ -134,7 +134,7 @@ function Harvest.InitializeOptions()
 		width = "half",
 		default = 0,
 	})
-	
+
 	optionsTable:insert({
 		type = "button",
 		name = Harvest.GetLocalization("apply"),
@@ -142,7 +142,7 @@ function Harvest.InitializeOptions()
 		width = "half",
 		warning = Harvest.GetLocalization("applywarning")
 	})
-	
+
 	optionsTable:insert({
 		type = "header",
 		name = "",
@@ -157,12 +157,12 @@ function Harvest.InitializeOptions()
 		width = "full",
 		warning = Harvest.GetLocalization("accountwarning"),
 	})
-	
+
 	optionsTable:insert({
 		type = "header",
 		name = "",
 	})
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("maxcachedmaps"),
@@ -174,7 +174,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetMaxCachedMaps,
 		default = Harvest.defaultSettings.maxCachedMaps,
 	})
-	
+
 	optionsTable:insert({
 		type = "checkbox",
 		name = Harvest.GetLocalization("hasdrawdistance"),
@@ -209,7 +209,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetDisplaySpeed,
 		default = Harvest.defaultSettings.displaySpeed,
 	})
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("hiddentime"),
@@ -221,7 +221,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetHiddenTime,
 		default = 0,
 	})
-	
+
 	optionsTable:insert({
 		type = "checkbox",
 		name = Harvest.GetLocalization("hiddenonharvest"),
@@ -230,7 +230,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetHiddenOnHarvest,
 		default = Harvest.defaultSettings.hiddenOnHarvest,
 	})
-	
+
 	optionsTable:insert({
 		type = "checkbox",
 		name = Harvest.GetLocalization("exactitem"),
@@ -259,12 +259,12 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetPinsAbovePOI,
 		default = (Harvest.defaultSettings.mapLayouts[1].level > 50),
 	})
-	
+
 	optionsTable:insert({
 		type = "header",
 		name = Harvest.GetLocalization("compassoptions"),
 	})
-	
+
 	optionsTable:insert({
 		type = "checkbox",
 		name = Harvest.GetLocalization("compass"),
@@ -273,7 +273,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetCompassPinsVisible,
 		default = Harvest.defaultSettings.isCompassVisible,
 	})
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("fov"),
@@ -284,7 +284,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetDisplayedFOV,
 		default = 100 * COMPASS_PINS.defaultFOV / (2 * math.pi)
 	})
-	
+
 	optionsTable:insert({
 		type = "slider",
 		name = Harvest.GetLocalization("distance"),
@@ -295,7 +295,7 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetDisplayedCompassDistance,
 		default = Harvest.defaultSettings.compassLayouts[1].maxDistance * 1000
 	})
-	
+
 	for _, pinTypeId in pairs( Harvest.PINTYPES ) do
 		if pinTypeId ~= Harvest.TOUR then
 			optionsTable:insert({
@@ -309,12 +309,12 @@ function Harvest.InitializeOptions()
 			optionsTable:insert( CreateColorPicker( pinTypeId ) )
 		end
 	end
-	
+
 	optionsTable:insert({
 		type = "header",
 		name = "Debug",
 	})
-	
+
 	optionsTable:insert({
 		type = "checkbox",
 		name = Harvest.GetLocalization( "debug" ),
@@ -323,10 +323,10 @@ function Harvest.InitializeOptions()
 		setFunc = Harvest.SetDebugMessagesEnabled,
 		default = Harvest.defaultSettings.debug,
 	})
-	
+
 	LAM:RegisterAddonPanel("HarvestMapControl", panelData)
 	LAM:RegisterOptionControls("HarvestMapControl", optionsTable)
-	
+
 	-- heat map check box in the map's filter menu:
 	-- code based on LibMapPin, see Libs/LibMapPin-1.0/LibMapPins-1.0.lua for credits
 	local function AddCheckbox(panel, pinCheckboxText)

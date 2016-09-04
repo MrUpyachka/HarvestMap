@@ -17,7 +17,7 @@ HarvestNodesCache = {}
 function HarvestNodesCache:initialize()
     -- Hash maps. pin tag used as key.
     self.types = {} -- Actually its typeId's list
-    self.timestamps = {}
+    self.timestamps = {} -- Time of last activity with node. In milliseconds.
     self.xLocals = {}
     self.yLocals = {}
     self.xGlobals = {}
@@ -47,7 +47,7 @@ end
 --- Adds data to cache.
 -- @param id node identifier.
 -- @param type type of node - typeId.
--- @param timestamp timestamp for tracking of age.
+-- @param timestamp timestamp for tracking of age. In milliseconds.
 -- @param x local abscissa of node.
 -- @param y local ordinate of node.
 -- @param xg global abscissa of node.
@@ -67,7 +67,7 @@ end
 --- Removes data from cache.
 -- @param id node identifier.
 -- @return type type of node - typeId.
--- @return timestamp timestamp for tracking of age.
+-- @return timestamp timestamp for tracking of age. In milliseconds.
 -- @return x local abscissa of node.
 -- @return y local ordinate of node.
 -- @return xg global abscissa of node.

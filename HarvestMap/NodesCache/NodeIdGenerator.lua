@@ -6,7 +6,7 @@ HarvestNodeIdGenerator = {}
 --- Creates an instance of generator.
 --
 function HarvestNodeIdGenerator:new()
-    local instance = {}
+    local instance = { lastId = 0 }
     self.__index = self
     setmetatable(instance, self)
     return instance
@@ -23,6 +23,6 @@ end
 -- @return unique identifier. !!!NOTE!!!: Not number, but string.
 --
 function HarvestNodeIdGenerator:generate(type, timestamp, x, y, xg, yg, item)
-    return type .. xg .. yg .. x .. y -- Node of the same time at the same point not supported.
-    -- TODO maybe global coordinates enough?
+    self.lastId = self.lastId + 1
+    return self.lastId
 end

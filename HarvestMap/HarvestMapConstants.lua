@@ -135,23 +135,6 @@ function Harvest.IsTrove( nodeName )
 	return isNodeNameTrove[ zo_strlower( nodeName) ]
 end
 
-local heistMaps = {
-	"^thievesguild/thehideaway",
-	"^thievesguild/secludedsewers",
-	"^thievesguild/deathhollowhalls",
-	"^thievesguild/glitteringgrotto",
-	"^thievesguild/undergroundsepulcher",
-}
-function Harvest.IsHeistMap( map )
-	local prefix = nil
-	for _, regexp in pairs(heistMaps) do
-		prefix = string.match(map, regexp)
-		if prefix then
-			return prefix
-		end
-	end
-	return false
-end
 --[[
 local isNodeNameJusticeContainer = {
 	["safebox"] = true,

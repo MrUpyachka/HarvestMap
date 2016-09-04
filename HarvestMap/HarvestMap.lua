@@ -18,112 +18,28 @@ local pairs = _G["pairs"]
 local tostring = _G["tostring"]
 local zo_floor = _G["zo_floor"]
 
--- returns informations regarding the current location
--- if viewedMap is true, the data is relative to the currently viewed map
--- otherwise the data is related to the map the player is currently on
-function Harvest.GetLocation( viewedMap )
-	local changed
-	if not viewedMap then
-		changed = (SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED)
-	end
-
-	local measurement = GPS:GetCurrentMapMeasurements( viewedMap ~= false )
-	if not viewedMap then
-		SetMapToPlayerLocation()
-	end
-	-- delves tend to be scaled down on the zone map, so we need to return a smaller value
-	if Harvest.IsModifiedMap(GetMapContentType(), measurement) then
-		local scale = math.sqrt(165)
-		measurement = {scaleX = measurement.scaleX * scale,
-		               scaleY = measurement.scaleY * scale,
-		               offsetX = measurement.offsetX,
-		               offsetY = measurement.offsetY }
-	end
-
-	local map = Harvest.GetMap()
-	local x, y = GetMapPlayerPosition( "player" )
-	if changed then
-		CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
-	end
-	return map, x, y, measurement
-end
-
--- returns true if the measurement is modified for this map
--- ie dungeons have to be rescaled, otherwise distances get overestimated
-function Harvest.IsModifiedMap( mapType, measurement)
-	return (mapType == MAP_CONTENT_DUNGEON and measurement and measurement.scaleX < 0.003)
-end
-
-function Harvest.GetMapData()
-	local measurement = GPS:GetCurrentMapMeasurements(true)
-	-- delves tend to be scaled down on the zone map, so we need to return a smaller value
-	if GetMapContentType() == MAP_CONTENT_DUNGEON and measurement and measurement.scaleX < 0.003 then
-		local scale = math.sqrt(165)
-		measurement = {scaleX = measurement.scaleX / scale,
-			scaleY = measurement.scaleY / scale,
-			offsetX = measurement.offsetX,
-			offsetY = measurement.offsetY }
-	end
-
-	local map = Harvest.GetMap()
-	local x, y = GetMapPlayerPosition( "player" )
-	return map, x, y, measurement
-end
-
-function Harvest.GetMap()
-	local textureName = GetMapTileTexture()
-	if Harvest.lastMapTexture ~= textureName then
-		Harvest.lastMapTexture = textureName
-		textureName = string.lower(textureName)
-		textureName = string.gsub(textureName, "^.*maps/", "")
-		textureName = string.gsub(textureName, "_%d+%.dds$", "")
-
-		if textureName == "eyevea_base" then
-			local worldMapName = GetUnitZone("player")
-			worldMapName = string.lower(worldMapName)
-			textureName = worldMapName .. "/" .. textureName
-		else
-			local heistMap = Harvest.IsHeistMap( textureName )
-			if heistMap then
-				Harvest.map = heistMap .. "_base"
-				return Harvest.map
-			end
-		end
-
-		Harvest.map = textureName
-	end
-	return Harvest.map
-end
-
-function Harvest.LocalToGlobal(x, y, measurement)
-	if not measurement then
-		return
-	end
-	x = x * measurement.scaleX + measurement.offsetX
-	y = y * measurement.scaleY + measurement.offsetY
-	return x, y
-end
-
--- helper function to only display debug messages if the debug mode is enabled
-function Harvest.Debug( message )
-	if Harvest.AreDebugMessagesEnabled() or Harvest.AreVerboseMessagesEnabled() then
-		d( message )
-	end
-end
-
 function Harvest.Verbose( message )
 	if Harvest.AreVerboseMessagesEnabled() then
-		Harvest.Debug( message )
+		HarvestDebugUtils.debug( message )
 	end
 end
+
+--[[
+-- Just an example of howto use controller.
+]]--
+local dbController = HarvestDbController:new(HarvestDB, CALLBACK_MANAGER) -- Eso global manager used, just for example.
+dbController:start() -- Now its started and listens for requests.
+local nodeResolver = HarvestNodeResolver:new(HarvestDB, CALLBACK_MANAGER, {})
+-- TODO recreate node resolver on each map/zone change. Pass proper options/measurements (cache them somewhere).
+nodeResolver:start()
 
 -- this function returns the pinTypeId for the given item id and node name
 function Harvest.GetPinTypeId( itemId, nodeName )
 	-- get two pinTypes based on the item id and node name
 	local itemIdPinType = Harvest.itemId2PinType[ itemId ]
 	local nodeNamePinType = Harvest.nodeName2PinType[ zo_strlower( nodeName ) ]
-	Harvest.Debug( "Item id " .. tostring(itemId) .. " returns pin type " .. tostring(itemIdPinType))
-	Harvest.Debug( "Node name " .. tostring(nodeName) .. " returns pin type " .. tostring(nodeNamePinType))
+	HarvestDebugUtils.debug( "Item id " .. tostring(itemId) .. " returns pin type " .. tostring(itemIdPinType))
+	HarvestDebugUtils.debug( "Node name " .. tostring(nodeName) .. " returns pin type " .. tostring(nodeNamePinType))
 	-- heavy sacks can contain material for different professions
 	-- so don't use the item id to determine the pin type
 	if Harvest.IsHeavySack( nodeName ) then
@@ -148,24 +64,24 @@ end
 function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, soundCategory, lootType, lootedBySelf )
 	-- don't touch the save files/tables while they are still being updated/refactored
 	if not Harvest.IsUpdateQueueEmpty() then
-		Harvest.Debug( "OnLootReceived failed: HarvestMap is updating" )
+		HarvestDebugUtils.debug( "OnLootReceived failed: HarvestMap is updating" )
 		return
 	end
 
 	if not lootedBySelf then
-		Harvest.Debug( "OnLootReceived failed: wasn't looted by self" )
+		HarvestDebugUtils.debug( "OnLootReceived failed: wasn't looted by self" )
 		return
 	end
 
-	local map, x, y, measurement = Harvest.GetLocation()
+	local map, x, y, measurement = HarvestMapUtils.GetMapInformation()
 	local isHeist = false
 	-- only save something if we were harvesting or the target is a heavy sack or thieves trove
 	if (not Harvest.wasHarvesting) and (not Harvest.IsHeavySack( Harvest.lastInteractableName )) and (not Harvest.IsTrove( Harvest.lastInteractableName )) then
 		-- additional check for heist containers
-		if not (lootType == LOOT_TYPE_QUEST_ITEM) or not Harvest.IsHeistMap(map) then
-			Harvest.Debug( "OnLootReceived failed: wasn't harvesting" )
-			Harvest.Debug( "OnLootReceived failed: wasn't heist quest item" )
-			Harvest.Debug( "Interactable name is:" .. tostring(Harvest.lastInteractableName))
+		if not (lootType == LOOT_TYPE_QUEST_ITEM) or not HarvestMapUtils.getHeistPrefixIfPossible(map) then
+			HarvestDebugUtils.debug( "OnLootReceived failed: wasn't harvesting" )
+			HarvestDebugUtils.debug( "OnLootReceived failed: wasn't heist quest item" )
+			HarvestDebugUtils.debug( "Interactable name is:" .. tostring(Harvest.lastInteractableName))
 			return
 		else
 			isHeist = true
@@ -179,7 +95,7 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		itemId = tonumber(itemId)
 		if itemId == nil then
 			-- wait what? does this even happen?! abort mission!
-			Harvest.Debug( "OnLootReceived failed: item id is nil" )
+			HarvestDebugUtils.debug( "OnLootReceived failed: item id is nil" )
 			return
 		end
 		-- get the pintype depending on the item we looted and the name of the harvest node
@@ -189,12 +105,12 @@ function Harvest.OnLootReceived( eventCode, receivedBy, objectName, stackCount, 
 		-- ie some data in the localization is missing and nirncrux can be found in ore and wood
 		-- abort if we couldn't find the correct pinType
 		if pinTypeId == nil then
-			Harvest.Debug( "OnLootReceived failed: pin type id is nil" )
+			HarvestDebugUtils.debug( "OnLootReceived failed: pin type id is nil" )
 			return
 		end
 		-- if this pinType is supposed to be saved
 		if not Harvest.IsPinTypeSavedOnGather( pinTypeId ) then
-			Harvest.Debug( "OnLootReceived failed: pin type is disabled in the options" )
+			HarvestDebugUtils.debug( "OnLootReceived failed: pin type is disabled in the options" )
 			return
 		end
 	else
@@ -210,7 +126,7 @@ end
 function Harvest.OnLootUpdated()
 	-- only save something if we were harvesting or the target is a heavy sack or thieves trove
 	if (not Harvest.wasHarvesting) and (not Harvest.IsHeavySack( Harvest.lastInteractableName )) and (not Harvest.IsTrove( Harvest.lastInteractableName )) then
-		Harvest.Debug( "OnLootUpdated failed: wasn't harvesting" )
+		HarvestDebugUtils.debug( "OnLootUpdated failed: wasn't harvesting" )
 		return
 	end
 
@@ -220,7 +136,7 @@ function Harvest.OnLootUpdated()
 	-- let harvestmap believe auto loot is enabled by calling
 	-- OnLootReceived for each item in the loot window
 	local items = GetNumLootItems()
-	Harvest.Debug( "HarvestMap will check " .. tostring(items) .. " items." )
+	HarvestDebugUtils.debug( "HarvestMap will check " .. tostring(items) .. " items." )
 	for lootIndex = 1, items do
 		local lootId, _, _, count = GetLootItemInfo( lootIndex )
 		Harvest.OnLootReceived( nil, nil, GetLootItemLink( lootId, LINK_STYLE_DEFAULT ), count, nil, nil, true )
@@ -228,7 +144,7 @@ function Harvest.OnLootUpdated()
 
 	-- when looting something, we have definitely finished the harvesting process
 	if Harvest.wasHarvesting then
-		Harvest.Debug( "All loot was handled. Set harvesting state to false." )
+		HarvestDebugUtils.debug( "All loot was handled. Set harvesting state to false." )
 		Harvest.wasHarvesting = false
 	end
 end
@@ -245,7 +161,8 @@ function Harvest.contains( table, value)
 end
 
 function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
-	CALLBACK_MANAGER:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, map, x, y, measurement, pinTypeId, itemId) -- TODO Another request which should be handled by NodeDataResolver
+	HarvestDebugUtils.debug("Try process data. Type: " .. pinTypeId)
+	CALLBACK_MANAGER:FireCallbacks(HarvestEvents.NODE_HARVESTED_EVENT, map, x, y, measurement, pinTypeId, GetTimeStamp(), itemId)
 end
 
 function Harvest.OnUpdate(time)
@@ -262,12 +179,12 @@ function Harvest.OnUpdate(time)
 	-- update the harvesting state. check if the character was harvesting something during the last two seconds
 	if not isHarvesting then
 		if Harvest.wasHarvesting and time - Harvest.harvestTime > 2000 then
-			Harvest.Debug( "Two seconds since last harvesting action passed. Set harvesting state to false." )
+			HarvestDebugUtils.debug( "Two seconds since last harvesting action passed. Set harvesting state to false." )
 			Harvest.wasHarvesting = false
 		end
 	else
 		if not Harvest.wasHarvesting then
-			Harvest.Debug( "Started harvesting. Set harvesting state to true." )
+			HarvestDebugUtils.debug( "Started harvesting. Set harvesting state to true." )
 		end
 		Harvest.wasHarvesting = true
 		Harvest.harvestTime = time
@@ -281,24 +198,24 @@ function Harvest.OnUpdate(time)
 			-- if the interactable is owned by an NPC but the action isn't called "Steal From"
 			-- then it wasn't a safebox but a simple door: don't place a chest pin
 			if Harvest.lastInteractableOwned and (not (Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE20))) then
-				Harvest.Debug( "not a chest or justice container(?)" )
+				HarvestDebugUtils.debug( "not a chest or justice container(?)" )
 				return
 			end
-			local map, x, y, measurement = Harvest.GetLocation()
+			local map, x, y, measurement = HarvestMapUtils.GetMapInformation()
 			-- normal chests aren't owned and their interaction is called "unlock"
 			-- other types of chests (ie for heists) aren't owned but their interaction is "search"
 			-- safeboxes are owned
 			if (not Harvest.lastInteractableOwned) and Harvest.lastInteractableAction == GetString(SI_GAMECAMERAACTIONTYPE12) then
 				-- normal chest
 				if not Harvest.IsPinTypeSavedOnGather( Harvest.CHESTS ) then
-					Harvest.Debug( "chests are disabled" )
+					HarvestDebugUtils.debug( "chests are disabled" )
 					return
 				end
 				Harvest.ProcessData( map, x, y, measurement, Harvest.CHESTS )
 			else
 				-- heist chest or safebox
 				if not Harvest.IsPinTypeSavedOnGather( Harvest.JUSTICE ) then
-					Harvest.Debug( "justice containers are disabled" )
+					HarvestDebugUtils.debug( "justice containers are disabled" )
 					return
 				end
 				Harvest.ProcessData( map, x, y, measurement, Harvest.JUSTICE )
@@ -308,10 +225,10 @@ function Harvest.OnUpdate(time)
 		if interactionType == INTERACTION_FISH then
 			-- don't create new pin if fishing pins are disabled
 			if not Harvest.IsPinTypeSavedOnGather( Harvest.FISHING ) then
-				Harvest.Debug( "fishing spots are disabled" )
+				HarvestDebugUtils.debug( "fishing spots are disabled" )
 				return
 			end
-			local map, x, y, measurement = Harvest.GetLocation()
+			local map, x, y, measurement = HarvestMapUtils.GetMapInformation()
 			Harvest.ProcessData( map, x, y, measurement, Harvest.FISHING )
 		end
 	end
@@ -339,7 +256,7 @@ function Harvest.FixSaveFile()
 		end
 	end
 	-- tints cannot be saved (only as rgba table) so restore these tables to tint objects
-	for _, layout in pairs( Harvest.GetMapLayouts() ) do
+	for _, layout in pairs( HarvestMapUtils.getCurrentMapLayouts() ) do
 		if layout.color then
 			layout.tint = ZO_ColorDef:New(unpack(layout.color))
 			layout.color = nil
@@ -352,7 +269,7 @@ end
 -- returns hours since 1970
 function Harvest.GetCurrentTimestamp()
 	-- data is saved/serializes as string. to prevent the save file from bloating up, reduce the stamp to hours
-	return zo_floor(GetTimeStamp() / 3600)
+	return zo_floor(GetTimeStamp() / 3600) -- TODO widely used. FIXME Seems that also affects respawn time.
 end
 
 

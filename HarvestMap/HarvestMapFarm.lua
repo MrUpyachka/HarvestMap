@@ -60,9 +60,9 @@ local function constructGraph(maxLength)
 	num_data_points = 0
 
 	local viewedMap = true
-	local map, x, y, measurement = Harvest.GetLocation( viewedMap )
+	local map, x, y, measurement = HarvestMapUtils.GetMapInformation( viewedMap )
 	-- don't use the helper on weird maps that have no valid meassurement
-	if (not measurement) or Harvest.IsModifiedMap(GetMapContentType(), measurement) then
+	if (not measurement) or HarvestMapUtils.isMeasurementsModificationRequired(measurement) then
 		return 1
 	end
 

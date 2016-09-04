@@ -30,11 +30,28 @@ local modf = math.modf
 -- @param y ordinate of node.
 --
 function LocationSortedCache:add(id, x, y)
-    local row = modf(x*self.locationScale)
-    local column = modf(y*self.locationScale)
-    local key = row + column*self.locationSize
+    local key = modf(x*self.locationScale) + modf(y*self.locationScale)*self.locationSize
     local location = self.locations[key] or {}
     self.locations[key] = location
     location[#location + 1] = id
-    Harvest.Debug("R: " .. row .. " C: " .. column)
+end
+
+--- Returns list of closes locations for specified coordinates. Sum of +1/-1 horizontally and vertically square area.
+-- @param x abscissa of node.
+-- @param y ordinate of node.
+-- @return list of closest locations. Iterate it through pairs index,location.
+--
+function LocationSortedCache:getClosestLocations(x, y)
+    local row = modf(x*self.locationScale)
+    local column = modf(y*self.locationScale)
+    local result = {}
+    for i = row - 1, row + 1 do
+        for j = column - 1, column + 1 do
+            local location = self.locations[i + j*self.locationSize]
+            if location ~= nil then
+                result[#result + 1] = location
+            end
+        end
+    end
+    return result
 end
