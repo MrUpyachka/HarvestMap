@@ -41,7 +41,7 @@ function HarvestDbController:onDeleteNodeRequest(map, nodeTag)
 
     local pinType = Harvest.GetPinType(pinTypeId)
     -- TODO Seems that we can avoid pinTypeId parameter for deletion of pin. By optimization of storages in ralted libraries.
-    self.callbackController:FireCallbacks(NODE_DELETED_EVENT, nodeTag, pinType)
+    self.callbackController:FireCallbacks(self, NODE_DELETED_EVENT, nodeTag, pinType)
 end
 
 ---
@@ -83,8 +83,9 @@ end
 -- Starts listening of callbacks and their processing.
 --
 function HarvestDbController:start()
-    self.callbackController:RegisterCallback(HarvestEvents.DELETE_NODE_REQUEST, self.onDeleteNodeRequest)
-    self.callbackController:RegisterCallback(HarvestEvents.ADD_NODE_REQUEST, self.onAddNodeRequest)
+    self.callbackController:RegisterCallback(HarvestEvents.DELETE_NODE_REQUEST, self.onDeleteNodeRequest, self)
+    self.callbackController:RegisterCallback(HarvestEvents.ADD_NODE_REQUEST, self.onAddNodeRequest, self)
+    self.callbackController:RegisterCallback(HarvestEvents.UPDATE_NODE_REQUEST, self.onUpdateNodeRequest, self)
     -- TODO register for other callbacks
     HarvestDebugUtils.debug("Harvest DB controller started.")
 end

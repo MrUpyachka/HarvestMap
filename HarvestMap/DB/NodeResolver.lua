@@ -26,17 +26,19 @@ end
 -- @param item discovered item.
 --
 function HarvestNodeResolver:onHarvested(map, x, y, measurement, pinTypeId, timestamp, item)
+    HarvestDebugUtils.debug("Try to resolve node data for type " .. pinTypeId)
     if not HarvestDebugUtils.validatePinData(map, x, y, measurement, pinTypeId, item) then
+        HarvestDebugUtils.debug("See validation errors")
         return
     end
-    HarvestDebugUtils.debug("Try to resolve node data for type " .. pinTypeId)
-
     local xGlobal, yGlobal = HarvestMapUtils.convertLocalToGlobal(x, y, measurement)
     local existingId = self.storage.getCloseNode(x, y, xGlobal, yGlobal)
     if existingId then
+        HarvestDebugUtils.debug("Node already exist: " .. existingId .. ". Notify to update.")
         -- node exist. Request update of its data.
         self.callbackController:FireCallbacks(HarvestEvents.UPDATE_NODE_REQUEST, existingId, timestamp, x, y, xGlobal, yGlobal, item)
     else
+        HarvestDebugUtils.debug("New node detected. Notify to add.")
         -- new node detected. Request its saving.
         local items
         -- Prepare items ID's list if necessary.
@@ -49,7 +51,7 @@ end
 
 --- Starts listening of callbacks and their processing.
 function HarvestNodeResolver:start()
-    self.callbackController:RegisterCallback(HarvestEvents.NODE_HARVESTED_EVENT, self.onHarvested)
+    self.callbackController:RegisterCallback(HarvestEvents.NODE_HARVESTED_EVENT, self.onHarvested, self)
     -- TODO register for other callbacks. Troves, chests and others.
     HarvestDebugUtils.debug("Harvest Node resolver started.")
 end

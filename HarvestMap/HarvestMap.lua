@@ -24,9 +24,11 @@ function Harvest.Verbose( message )
 	end
 end
 
+
 --[[
 -- Just an example of howto use controller.
 ]]--
+assert(HarvestDB, "HarvestDB is nil")
 local dbController = HarvestDbController:new(HarvestDB, CALLBACK_MANAGER) -- Eso global manager used, just for example.
 dbController:start() -- Now its started and listens for requests.
 local nodeResolver = HarvestNodeResolver:new(HarvestDB, CALLBACK_MANAGER, {})
@@ -48,16 +50,7 @@ function Harvest.GetPinTypeId( itemId, nodeName )
 	if Harvest.IsTrove( nodeName ) then
 		return Harvest.TROVE
 	end
-	-- both returned the same pin type (or both are unknown/nil)
-	if itemIdPinType == nodeNamePinType then
-		return itemIdPinType
-	end
-	-- we allow this special case because of possible errors in the localization
-	if nodeNamePinType == nil then
-		return itemIdPinType
-	end
-	-- the pin types don't match, don't save the node as there is some error
-	return nil
+	return itemIdPinType or nodeNamePinType
 end
 
 -- not just called by EVENT_LOOT_RECEIVED but also by Harvest.OnLootUpdated
@@ -238,9 +231,9 @@ end
 -- this hack saves the name of the object that was last interacted with
 local oldInteract = FISHING_MANAGER.StartInteraction
 FISHING_MANAGER.StartInteraction = function(...)
-	local action, name, blockedNode, isOwned = GetGameCameraInteractableActionInfo()
+	local action, interactableName, interactionBlocked, isOwned, additionalInteractInfo, context, contextLink, isCriminalInteract = GetGameCameraInteractableActionInfo()
 	Harvest.lastInteractableAction = action
-	Harvest.lastInteractableName = name
+	Harvest.lastInteractableName = interactableName
 	Harvest.lastInteractableOwned = isOwned
 	return oldInteract(...)
 end

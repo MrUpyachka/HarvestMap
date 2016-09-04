@@ -1,5 +1,6 @@
 --- Utility tools to help with handling of current map data.
 HarvestMapUtils = {}
+local GPS = LibStub("LibGPS2")
 
 --- List of heist map names.
 local heistMaps = {
@@ -110,9 +111,7 @@ end
 -- @return y global ordinate of point.
 --
 function HarvestMapUtils.convertLocalToGlobal(x, y, measurements)
-    if not measurement then
-        return
-    end
+    assert(measurements, "Unable to calculate global coordinates without measurement options")
     x = x * measurements.scaleX + measurements.offsetX
     y = y * measurements.scaleY + measurements.offsetY
     return x, y

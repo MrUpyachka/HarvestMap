@@ -12,7 +12,8 @@ end
 
 --- Helper function to only display debug messages if the debug mode is enabled
 function HarvestDebugUtils.debug(message)
-    if Harvest and (Harvest.AreDebugMessagesEnabled() or Harvest.AreVerboseMessagesEnabled()) or not Harvest then
+    -- TODO better toggling of debug
+    if Harvest and (Harvest.AreDebugMessagesEnabled and Harvest.AreDebugMessagesEnabled() or Harvest.AreVerboseMessagesEnabled and Harvest.AreVerboseMessagesEnabled()) then
         d(message)
     end
 end
@@ -33,7 +34,7 @@ function HarvestDebugUtils.validatePinData(map, x, y, measurement, pinTypeId, it
         return false
     end
     if type(x) ~= "number" or type(y) ~= "number" then
-        HarvestDebugUtils.debug("Validation of data failed: coordinates aren't numbers")
+        HarvestDebugUtils.debug("Validation of data failed: coordinates aren't numbers: " .. type(x) .. " " .. type(y))
         return false
     end
     if not measurement then
