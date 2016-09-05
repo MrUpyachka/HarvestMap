@@ -292,8 +292,8 @@ HarvestDebugUtils.debugHandler = {
 
 function Harvest.InitializeMapMarkers()
     EVENT_MANAGER:RegisterForUpdate("HarvestMapMakers", 200, Harvest.UpdateMapPins)
-    Harvest.RegisterForEvent(Harvest.NODECREATED, nodeCreatedOrUpdated)
-    Harvest.RegisterForEvent(Harvest.NODEUPDATED, nodeCreatedOrUpdated)
+    -- Harvest.RegisterForEvent(Harvest.NODECREATED, nodeCreatedOrUpdated)
+    -- Harvest.RegisterForEvent(Harvest.NODEUPDATED, nodeCreatedOrUpdated)
 
     Harvest.pinIterators = {}
 

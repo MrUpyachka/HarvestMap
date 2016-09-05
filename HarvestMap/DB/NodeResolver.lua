@@ -32,6 +32,8 @@ function HarvestNodeResolver:onHarvested(map, x, y, measurement, pinTypeId, time
         return
     end
     local xGlobal, yGlobal = HarvestMapUtils.convertLocalToGlobal(x, y, measurement)
+    -- TODO get close by type.
+    -- TODO assert that such type loaded to cache from save file.
     local existingId = self.storage.getCloseNode(x, y, xGlobal, yGlobal)
     if existingId then
         HarvestDebugUtils.debug("Node already exist: " .. existingId .. ". Notify to update.")

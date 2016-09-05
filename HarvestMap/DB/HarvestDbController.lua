@@ -5,10 +5,6 @@
 --
 HarvestDbController = {}
 
----
--- Constants to define names for operations callbacks. TODO better place to avoid unnecessary dependencies.
---
-
 -- TODO investigate howto avoid sending of map as parameter. Seems that it better to cache it inside an controller.
 -- Seems that it used only in HarvestDB module to save nodes in static storage.
 -- Also we need to have async entity which tracks changes of map (zone/location/level).

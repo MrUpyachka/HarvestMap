@@ -131,6 +131,11 @@ local idCache
 --
 local locationCache
 
+---
+-- Cache of nodes indexed by their type.
+--
+local typeCache
+
 --- Check that cache for specified map exists and creates if not.
 -- @param map target map instance.
 -- @param options options for cache.
@@ -149,6 +154,8 @@ local function checkAndUpdateCache(map, options)
         idCache = HarvestNodesCache:new(map, o)
         -- Create other caches together with idCache.
         locationCache = LocationSortedCache:new(map, { locationSize = 10, locationScale = 100 }) -- TODO FIXME proper processing of options.
+
+        typeCache = {}
 
         setAllTypesNotCached() -- as soon as cache empty - there is no any cached type of nodes.
     end
@@ -171,13 +178,13 @@ local function updateSaveFile(id, type, timestamp, x, y, xg, yg, items)
     local dataToSerialize = { x, y, nil, items, timestamp / 3600000, Harvest.nodeVersion } -- Timestamp in hours enough for save file. TODO check back conversion on deserialization
     -- TODO investigate NodeVersion and adapter for different nodes versions. Better no ignore old versions if its impossible to convert them once.
     local saveFile = GetSaveFile(map)
-    local mapData = saveFile.data[map] or {}-- save file tables might not exist yet
+    local mapData = saveFile.data[map] or {} -- save file tables might not exist yet
     saveFile.data[map] = mapData
-    local typeOnMapData = saveFile.data[map][type] or {} -- save file tables might not exist yet
-    saveFile.data[map][type] = typeOnMapData
+    local typeOnMapData = mapData[type] or {} -- save file tables might not exist yet
+    mapData[type] = typeOnMapData
 
     -- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
-    saveFile.data[map][type][id] = Serialize(dataToSerialize)
+    typeOnMapData[id] = Serialize(dataToSerialize)
 end
 
 --- Adds data to all caches.
@@ -200,8 +207,14 @@ local function addNodeToCache(type, timestamp, x, y, xg, yg, items)
     local id = idGenerator:generate(type, timestamp, x, y, xg, yg, items)
 
     idCache:add(id, type, timestamp, x, y, xg, yg, items)
+
+    -- Add to location cache
     locationCache:add(id, xg, yg)
 
+    -- Add to type cache
+    local typeNodes = typeCache[type] or {}
+    typeCache[type] = typeNodes
+    typeNodes[#typeNodes + 1] = id
     return id
 end
 
@@ -260,6 +273,28 @@ local updateNodeInCache = HarvestDB.updateNodeInCache
 --
 local function deleteNodeFromCache(id)
     local type, timestamp, x, y, xg, yg, items = idCache:delete(id) -- TODO supress local variables.
+
+    -- Delete from location cache.
+    local closestLocations = locationCache:getClosestLocations(xg, xy)
+    local dx, dy
+
+    for _, location in pairs(closestLocations) do
+        for index, nodeId in pairs(location) do
+            if nodeId == id then
+                location[index] = nil
+                break
+            end
+        end
+    end
+
+    -- Delete from type cache
+    local typeNodes = typeCache[type]
+    for index, identifier in pairs(typeNodes) do
+        if id == identifier then
+            typeNodes[index] = nil
+            break
+        end
+    end
     return type, timestamp, x, y, xg, yg, items
 end
 
@@ -284,7 +319,6 @@ function HarvestDB.addNode(type, timestamp, x, y, xg, yg, items)
     local id = addNodeToCache(type, timestamp, x, y, xg, yg, items)
     updateSaveFile(id, type, timestamp, x, y, xg, yg, items)
     return id
-
 end
 
 --- Updates data of node.
@@ -313,7 +347,9 @@ end
 --
 function HarvestDB.deleteNode(id)
     local type, timestamp, x, y, xg, yg, items = deleteNodeFromCache(id)
-    -- TODO delete data from file.
+    local map = idCache.map -- TODO cache map reference somewhere else.
+    local saveFile = GetSaveFile(map)
+    saveFile.data[map][type][id] = nil
     return type, timestamp, x, y, xg, yg, items
 end
 
@@ -347,8 +383,43 @@ function HarvestDB.getCloseNode(x, y, xGlobal, yGlobal)
     return nil
 end
 
+
+--- Returns node data as tuple.
+-- @param id unique identifier of node.
+-- @return type type of node - typeId.
+-- @return timestamp timestamp for tracking of age.
+-- @return x local abscissa of node.
+-- @return y local ordinate of node.
+-- @return xg global abscissa of node.
+-- @return yg global ordinate of node.
+-- @return items items table with timestamps: {itemId, timestamp} pairs.
+--
+function HarvestDB.getNodeTuple(id)
+    return idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
+    idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id]
+end
+
 ------------------------------------------------------------------------------------------------------------------------
 -- END Interface of storage to be used by controllers ------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+-- BEGIN Functions to iterate over cache -------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+--- Returns node data as tuple.
+-- @param type type of node - typeId.
+-- @param callback function to called for each node with tuple of node data as argument.
+--
+function HarvestDB.forNodesOfType(type, callback)
+    for index, id in pairs(typeCache[type]) do
+        callback(idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
+            idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id])
+    end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+-- END Functions to iterate over cache ---------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
 ---
