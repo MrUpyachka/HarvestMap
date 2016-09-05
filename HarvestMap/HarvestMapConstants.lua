@@ -115,7 +115,7 @@ local isNodeNameHeavySack = {
     ["heavy crate"] = true, -- special nodes in cold harbor
     ["schwerer sack"] = true,
     ["sac lourd"] = true,
-    ["Тяжелый мешок"] = true, -- russian
+    ["тяжелый мешок"] = true, -- russian
 }
 
 function Harvest.IsHeavySack(nodeName)
@@ -126,7 +126,7 @@ local isNodeNameTrove = {
     ["thieves trove"] = true,
     ["diebesgut"] = true,
     ["trésor des voleurs"] = true,
-    ["Воровской тайник"] = true,
+    ["воровской тайник"] = true,
 }
 
 -- TODO process chests, heavy stacks and thiefe troves by different logic based on loot handling and isStolen flag.
@@ -285,6 +285,7 @@ Harvest.itemId2PinType = {
     [64501] = Harvest.WATER
 }
 
+-- TODO fix localization names. Avoid broken symbols
 local nodeName2PinType = {
     ["Heavy Sack"] = Harvest.HEAVYSACK,
     ["Schwerer Sack"] = Harvest.HEAVYSACK,

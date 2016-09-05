@@ -256,6 +256,12 @@ function Harvest.SetPinTypeVisible( pinTypeId, value )
 	HarvestHeat.RefreshHeatmap()
 end
 
+function Harvest.SetPinTypeVisibleTest(type, value)
+	-- TODO for tests only
+	Harvest.savedVars["settings"].isPinTypeVisible[type] = value
+	LMP:SetEnabled(type, value)
+end
+
 function Harvest.IsDebugEnabled()
 	return Harvest.savedVars["settings"].isPinTypeVisible[ Harvest.GetPinType( "Debug" ) ]
 end
