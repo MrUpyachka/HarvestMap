@@ -68,7 +68,7 @@ end
 --- Returns informations regarding the current location
 -- if viewedMap is true, the data is relative to the currently viewed map
 -- otherwise the data is related to the map the player is currently on.
--- @param viewedMap displayed map reference.
+-- @param viewedMap means that map visible and should not be changed.
 -- @return map current map reference.
 -- @return x abscissa of point.
 -- @return y ordinate of point.
@@ -77,6 +77,7 @@ end
 function HarvestMapUtils.GetMapInformation(viewedMap)
     local changed
     if not viewedMap then
+        -- try to change map if not specified.
         changed = (SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED)
     end
 

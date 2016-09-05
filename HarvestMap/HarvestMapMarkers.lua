@@ -48,7 +48,7 @@ local function CreatePinInAllControllers(nodeTag, pinTypeId)
     LMP:CreatePin(pinType, nodeTag, x, y)
     COMPASS_PINS:CreatePin(pinType, nodeTag, x, y)
     pinNumber = pinNumber + 1
-    HarvestDebugUtils.debug("Total pins on map: " .. pinNumber)
+    --HarvestDebugUtils.debug("Total pins on map: " .. pinNumber)
 end
 
 local function CreatePinOnMap(nodeTag, pinTypeId)
@@ -58,8 +58,8 @@ local function CreatePinOnMap(nodeTag, pinTypeId)
     nodeTag.counter = pinNumber
     LMP:CreatePin(pinType, nodeTag, x, y)
 
-    HarvestDebugUtils.debug("Pin " .. pinNumber .. " added for type " .. pinType)
-    HarvestDebugUtils.debug("X: " .. x .. " Y: " .. y)
+    --HarvestDebugUtils.debug("Pin " .. pinNumber .. " added for type " .. pinType)
+    --HarvestDebugUtils.debug("X: " .. x .. " Y: " .. y)
 end
 
 ---

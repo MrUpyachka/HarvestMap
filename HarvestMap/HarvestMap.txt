@@ -49,6 +49,8 @@ HarvestMapDB.lua
 DB/NodeResolver.lua
 ## Controller for async processing of events with nodes.
 DB/HarvestDbController.lua
+## Root controller.
+Map/MapController.lua
 ## Root object.
 HarvestMap.lua
 

@@ -83,5 +83,15 @@ function HarvestDbController:start()
     self.callbackController:RegisterCallback(HarvestEvents.ADD_NODE_REQUEST, self.onAddNodeRequest, self)
     self.callbackController:RegisterCallback(HarvestEvents.UPDATE_NODE_REQUEST, self.onUpdateNodeRequest, self)
     -- TODO register for other callbacks
-    HarvestDebugUtils.debug("Harvest DB controller started.")
+    HarvestDebugUtils.debug("HarvestDbController controller started.")
+end
+
+---
+-- Stops listening of callbacks and their processing.
+--
+function HarvestDbController:stop()
+    self.callbackController:UnregisterCallback(HarvestEvents.DELETE_NODE_REQUEST, self.onDeleteNodeRequest)
+    self.callbackController:UnregisterCallback(HarvestEvents.ADD_NODE_REQUEST, self.onAddNodeRequest)
+    self.callbackController:UnregisterCallback(HarvestEvents.UPDATE_NODE_REQUEST, self.onUpdateNodeRequest)
+    HarvestDebugUtils.debug("HarvestDbController controller stopped.")
 end

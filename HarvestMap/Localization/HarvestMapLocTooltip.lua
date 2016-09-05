@@ -627,8 +627,8 @@ function Harvest.GetLocalizedTooltip(pin)
         table.insert(result, "Click to delete:")
     end
 
-    local nodeTag = pin.m_PinTag
-    local itemIds = HarvestDB.GenerateItemTable(nodeTag)
+    local nodeId = pin.m_PinTag
+    local itemIds = HarvestDB.GenerateItemTable(nodeId)
 
     local lines = {}
     if Harvest.AreExactItemsShown() then
@@ -686,7 +686,6 @@ function Harvest.GetLocalizedTooltip(pin)
             table.insert(lines, table.concat(text, ", "))
         end
     end
-    lines[1] = lines[1] .. "_" .. nodeTag.counter
     for _, line in ipairs(lines) do
         table.insert(result, line)
     end

@@ -21,20 +21,20 @@ end
 -- @param x abscissa of point.
 -- @param y ordinate of point.
 -- @param measurement the measurement of the map, used to properly calculate distances between the new and the old pins.
--- @param pinTypeId type of detected node.
+-- @param type type of detected node.
 -- @param timestamp event time. In milliseconds.
 -- @param item discovered item.
 --
-function HarvestNodeResolver:onHarvested(map, x, y, measurement, pinTypeId, timestamp, item)
-    HarvestDebugUtils.debug("Try to resolve node data for type " .. pinTypeId)
-    if not HarvestDebugUtils.validatePinData(map, x, y, measurement, pinTypeId, item) then
+function HarvestNodeResolver:onHarvested(map, x, y, measurement, type, timestamp, item)
+    HarvestDebugUtils.debug("Try to resolve node data for type " .. type)
+    if not HarvestDebugUtils.validatePinData(map, x, y, measurement, type, item) then
         HarvestDebugUtils.debug("See validation errors")
         return
     end
     local xGlobal, yGlobal = HarvestMapUtils.convertLocalToGlobal(x, y, measurement)
     -- TODO get close by type.
     -- TODO assert that such type loaded to cache from save file.
-    local existingId = self.storage.getCloseNode(x, y, xGlobal, yGlobal)
+    local existingId = self.storage.getCloseNodeOfType(x, y, xGlobal, yGlobal, type)
     if existingId then
         HarvestDebugUtils.debug("Node already exist: " .. existingId .. ". Notify to update.")
         -- node exist. Request update of its data.
@@ -44,10 +44,10 @@ function HarvestNodeResolver:onHarvested(map, x, y, measurement, pinTypeId, time
         -- new node detected. Request its saving.
         local items
         -- Prepare items ID's list if necessary.
-        if ItemUtils.isItemsListRequired(pinTypeId) then
+        if ItemUtils.isItemsListRequired(type) then
             items = { [item] = timestamp }
         end
-        self.callbackController:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, map, x, y, xGlobal, yGlobal, pinTypeId, timestamp, items)
+        self.callbackController:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, map, x, y, xGlobal, yGlobal, type, timestamp, items)
     end
 end
 
@@ -55,6 +55,10 @@ end
 function HarvestNodeResolver:start()
     self.callbackController:RegisterCallback(HarvestEvents.NODE_HARVESTED_EVENT, self.onHarvested, self)
     -- TODO register for other callbacks. Troves, chests and others.
-    HarvestDebugUtils.debug("Harvest Node resolver started.")
+    HarvestDebugUtils.debug("HarvestNodeResolver started.")
 end
-
+--- Stops listening of callbacks and their processing.
+function HarvestNodeResolver:stop()
+    self.callbackController:UnregisterCallback(HarvestEvents.NODE_HARVESTED_EVENT, self.onHarvested, self)
+    HarvestDebugUtils.debug("HarvestNodeResolver stopped.")
+end

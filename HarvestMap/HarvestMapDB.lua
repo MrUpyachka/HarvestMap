@@ -55,25 +55,7 @@ local AS = LibStub("AceSerializer-3.0h")
 --]]
 
 
--- TODO list:
--- The deserialized cache datastructure could be optimized in the future via something like this:
-HarvestDB.database = {
-    xLocal = {}, -- nodeTag -> x coordinate in local map coordinates
-    yLocal = {}, -- nodeTag -> y coordinate in local map coordinates
-    xGlobal = {}, -- nodeTag -> x coordinate in global map coordinates
-    yGlobal = {}, -- nodeTag -> y coordinate in global map coordinates
-    pinTypeId = {}, -- nodeTag -> pinTypeId
-    version = {}, -- nodeTag -> version (stores the addon and game version, when the node was created/last updated)
-    timestamp = {}, -- nodeTag -> timestamp (time the node was created/last updated)
-    -- as each node can spawn multiple items, each node gets two indices (firstItemIndex and lastItemIndex)
-    -- which define a region in the itemId list. this region contains the informations for the node's items.
-    itemId = {}, -- list of item ids
-    itemTimestamp = {}, -- list of item timestamps
-    firstItemIndex = {}, -- nodeTag -> first index in the itemId and itemTimestamp lists
-    lastItemIndex = {}, -- nodeTag -> last index in the itemId and itemTimestamp lists
-}
-
-local GetSubDivisionCoords, GetSubDivision, GetSubDivisionsOnMap
+local GetSubDivisionCoords, GetSubDivision, loadDivisionsOnMap
 local GetNearestNodeIndex, ShouldMergeNodes, LoadToCache, Serialize, Deserialize
 local CheckNodeVersion, GetSaveFile, GetSpecialSaveFile, IsNodeValid
 
@@ -85,10 +67,7 @@ local CheckNodeVersion, GetSaveFile, GetSpecialSaveFile, IsNodeValid
 ------------------------------------------------------------------------------------------------------------------------
 --[[
 -- TODO list ( to not forget tomorrow ):
- - Update node operation with new cache usage -
- - Check compatibility during loading from serialized data -
  - Check fields what we need in runtime and in static storage, seems that there is an difference -
- - Debug this sh* :D -
  - Check todo's that all critical issues fixed -
  ]]
 ---
@@ -101,6 +80,7 @@ local idGenerator = HarvestNodeIdGenerator:new()
 --- Table with cached types of pins.
 local cachedTypes = {}
 
+------------------------------------------------------------------------------------------------------------------------
 --- Checks that type already cached or not.
 -- @param type node type - typeId.
 -- @return true if nodes of these type already cached. false in opposite case.
@@ -118,7 +98,6 @@ local function setAllTypesNotCached()
 end
 
 ------------------------------------------------------------------------------------------------------------------------
-
 ---
 -- Cache of nodes indexed by nodes identifiers.
 -- Contains node for current map, uses options(measurments).
@@ -136,20 +115,22 @@ local locationCache
 --
 local typeCache
 
+--- Genral propeties of current map.
+local map, options
+
+------------------------------------------------------------------------------------------------------------------------
 --- Check that cache for specified map exists and creates if not.
--- @param map target map instance.
--- @param options options for cache.
+-- @param m target map instance.
+-- @param o options for cache.
 --
-local function checkAndUpdateCache(map, options)
-    assert(map, "Map cannot be empty")
+function HarvestDB.checkAndUpdateCache(m, o)
+    map = m
+    options = o
+
     -- if current cache not related with current map - create new one.
     -- TODO we can persist list of last previous caches
     -- if there is no cache - create.
     if idCache and map ~= idCache.map or not idCache then
-        if idCache then
-            HarvestDebugUtils.debug("Previous map: " .. idCache.map)
-        end
-        HarvestDebugUtils.debug("Map changed to " .. map .. ". Reset cache.")
         local o = ZO_DeepTableCopy(options) -- Options should be immutable for cache. To avoid unexpected behaviour.
         idCache = HarvestNodesCache:new(map, o)
         -- Create other caches together with idCache.
@@ -158,12 +139,13 @@ local function checkAndUpdateCache(map, options)
         typeCache = {}
 
         setAllTypesNotCached() -- as soon as cache empty - there is no any cached type of nodes.
+        HarvestDebugUtils.debug("Storage configured for " .. map .. ". All caches reset.")
     end
     -- TODO check other types of cache
 end
 
----
--- Duplicates node data to save file for specified map and node type.
+------------------------------------------------------------------------------------------------------------------------
+--- Duplicates node data to save file for specified map and node type.
 -- @param id unique identifier of node.
 -- @param type type of node - typeId.
 -- @param timestamp timestamp for tracking of age.
@@ -187,6 +169,7 @@ local function updateSaveFile(id, type, timestamp, x, y, xg, yg, items)
     typeOnMapData[id] = Serialize(dataToSerialize)
 end
 
+------------------------------------------------------------------------------------------------------------------------
 --- Adds data to all caches.
 -- @param type type of node - typeId.
 -- @param timestamp timestamp for tracking of age.
@@ -218,6 +201,7 @@ local function addNodeToCache(type, timestamp, x, y, xg, yg, items)
     return id
 end
 
+------------------------------------------------------------------------------------------------------------------------
 ---
 -- Merges information about items.
 -- @param type type of node - typeId.
@@ -235,6 +219,7 @@ local function mergeItemsData(type, sourceItemsData, item, timestamp)
     return result
 end
 
+------------------------------------------------------------------------------------------------------------------------
 --- Updates data of node in caches.
 -- @param id unique identifier of node.
 -- @param timestamp timestamp for tracking of age.
@@ -261,6 +246,7 @@ end
 
 local updateNodeInCache = HarvestDB.updateNodeInCache
 
+------------------------------------------------------------------------------------------------------------------------
 --- Deletes node from caches.
 -- @param id unique identifier of node.
 -- @return type type of node - typeId.
@@ -335,6 +321,7 @@ function HarvestDB.updateNode(id, timestamp, x, y, xg, yg, item)
     updateSaveFile(id, idCache.types[id], timestamp, x, y, xg, yg, idCache.items[id])
 end
 
+------------------------------------------------------------------------------------------------------------------------
 --- Deletes node.
 -- @param id unique identifier of node.
 -- @return type type of node - typeId.
@@ -353,37 +340,45 @@ function HarvestDB.deleteNode(id)
     return type, timestamp, x, y, xg, yg, items
 end
 
+------------------------------------------------------------------------------------------------------------------------
 --- Returns close node depends on minimum distance. NOTE: its not clossest node.
 -- @param x local abscissa of node.
 -- @param y local ordinate of node.
 -- @param xGlobal abscissa of node.
 -- @param yGlobal ordinate of node.
+-- @param type interest type of node.
 -- @return node identifier or nil if no node found in close area.
 --
-function HarvestDB.getCloseNode(x, y, xGlobal, yGlobal)
+function HarvestDB.getCloseNodeOfType(x, y, xGlobal, yGlobal, type)
     -- TODO cache constants.
     local minDistance = Harvest.GetMinDistanceBetweenPins()
     local globalMinDistance = Harvest.GetGlobalMinDistanceBetweenPins()
     local closestLocations = locationCache:getClosestLocations(xGlobal, yGlobal)
     local dx, dy
     for _, location in pairs(closestLocations) do
+        -- For each location.
         for __, id in pairs(location) do
-            dx = idCache.xLocals[id] - x
-            dy = idCache.yLocals[id] - y
-            if dx * dx + dy * dy < minDistance then
-                return id
-            end
-            dx = idCache.xGlobals[id] - xGlobal
-            dy = idCache.yGlobals[id] - yGlobal
-            if dx * dx + dy * dy < globalMinDistance then
-                return id
+            -- For each node in location.
+            if idCache.types[id] == type then
+                -- Only if node has specified type.
+                dx = idCache.xLocals[id] - x
+                dy = idCache.yLocals[id] - y
+                -- Check local and global distance.
+                if dx * dx + dy * dy < minDistance then
+                    return id
+                end
+                dx = idCache.xGlobals[id] - xGlobal
+                dy = idCache.yGlobals[id] - yGlobal
+                if dx * dx + dy * dy < globalMinDistance then
+                    return id
+                end
             end
         end
     end
     return nil
 end
 
-
+------------------------------------------------------------------------------------------------------------------------
 --- Returns node data as tuple.
 -- @param id unique identifier of node.
 -- @return type type of node - typeId.
@@ -400,6 +395,19 @@ function HarvestDB.getNodeTuple(id)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
+--- Loads nodes of specified type if they are not loaded yet.
+-- @param type type of nodes - typeId.
+--
+function HarvestDB.loadNodesOfTypeIfNecessary(type)
+    if not isTypeCached(type) then
+        HarvestDB.loadDivisionsOnMapTODOrework(type, map, options)
+        HarvestDebugUtils.debug("Pins of type " .. Harvest.GetLocalization("pintype" .. type) .. " loaded to cache.")
+    else
+        -- HarvestDebugUtils.debug("Pins of type " .. Harvest.GetLocalization("pintype" .. type) .. " already loaded to cache. Avoid multiple loading.")
+    end
+end
+
+------------------------------------------------------------------------------------------------------------------------
 -- END Interface of storage to be used by controllers ------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -412,8 +420,14 @@ end
 -- @param callback function to called for each node with tuple of node data as argument.
 --
 function HarvestDB.forNodesOfType(type, callback)
+    HarvestDB.loadNodesOfTypeIfNecessary(type)
+    local typeNodes = typeCache[type]
+    if not typeNodes then
+        HarvestDebugUtils.debug("No pins of type " .. type .. " in cache.")
+        return
+    end
     for index, id in pairs(typeCache[type]) do
-        callback(idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
+        callback(id, idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
             idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id])
     end
 end
@@ -670,10 +684,10 @@ end
 ---
 -- generates the {[itemId] = timestamp} table for the node represented by the given nodeTag
 -- this function is only called, when the mouse is above a pin and the tooltip needs to be created.
--- @param nodeTag
+-- @param id
 --
-function HarvestDB.GenerateItemTable(nodeTag)
-    return nodeTag.data[Harvest.ITEMS] -- TODO nothing generated, just returned. nodetag? its node.
+function HarvestDB.GenerateItemTable(id)
+    return idCache.items[id]
 end
 
 ---
@@ -851,95 +865,6 @@ function GetNearestNodeIndex(nodes, x, y)
     return nil -- node not found.
 end
 
--- same as IsNodeAlreadyFound but this one also checks the global distance
-function ShouldMergeNodes(nodes, x, y, measurement)
-    local minDistance = Harvest.GetMinDistanceBetweenPins()
-    local globalMinDistance = Harvest.GetGlobalMinDistanceBetweenPins()
-    local globalX, globalY = HarvestMapUtils.convertLocalToGlobal(x, y, measurement)
-    local dx, dy
-    local divX, divY = GetSubDivisionCoords(x, y, measurement)
-    local divisions, division
-    for i = -1, 1 do
-        for j = -1, 1 do
-            division = GetSubDivision(nodes, divX + i, divY + j)
-            if division then
-                for index, node in pairs(division) do
-                    dx = node.data[Harvest.X] - x
-                    dy = node.data[Harvest.Y] - y
-                    if dx * dx + dy * dy < minDistance then -- the new node is too close to an old one, it's probably a duplicate
-                    return divX + i, divY + j, index
-                    end
-                    dx = node.global[Harvest.X] - globalX
-                    dy = node.global[Harvest.Y] - globalY
-                    if dx * dx + dy * dy < globalMinDistance then
-                        return divX + i, divY + j, index
-                    end
-                end
-            end
-        end
-    end
-
-    return nil, nil, nil
-end
-
-
-
----
--- Merges properties of an existing node with data from update event.
--- @param node existing node
--- @param x abscissa of update event.
--- @param y ordinate of update event.
--- @param measurement data of event.
--- @param pinTypeId type of resource from event.
--- @param itemId unique id of item from event.
--- @param stamp event timestamp.
---
-local function mergeNodeAndData(node, x, y, measurement, pinTypeId, itemId, stamp)
-    local nodeUpdated = true -- TODO Rework this. Always updates coordinates.
-    local nodeData = node.data
-    -- update the timestamp of the nodes items
-    if itemId and ItemUtils.isItemsListRequired(pinTypeId) then
-        nodeData[Harvest.ITEMS] = nodeData[Harvest.ITEMS] or {}
-        nodeData[Harvest.ITEMS][itemId] = stamp
-    end
-
-    -- update the pins position and version
-    -- the old position could be outdated while the new one was just confirmed to be correct
-    nodeData[Harvest.TIME] = stamp
-    -- TODO discuss that it may be better to add some threshhold, before we update old coordinates.
-    nodeData[Harvest.X] = x
-    nodeData[Harvest.Y] = y
-    node.global = { HarvestMapUtils.convertLocalToGlobal(x, y, measurement) }
-    nodeData[Harvest.VERSION] = Harvest.nodeVersion
-    return nodeUpdated
-end
-
----
--- Adds new node to specified collection.
--- @param nodes collection of nodes.
--- @param index index for new node.
--- @param x abscissa of update event.
--- @param y ordinate of update event.
--- @param measurement data of event.
--- @param nodeData data for new node.
--- @return created node.
---
-local function addNodeData(nodes, index, x, y, measurement, nodeData)
-    -- the new nodes needs to be saved at the same index in both tables.
-    -- we need to save the data in serialized form in the save file,
-    -- but also as deserialized table in the cache table for faster access.
-    local divisionX, divisionY = GetSubDivisionCoords(x, y, measurement)
-    local division = GetSubDivision(nodes, divisionX, divisionY)
-    -- saving the node in deserialized form
-    local node = {
-        data = nodeData,
-        time = GetFrameTimeSeconds(), -- time for the respawn timer
-        global = { HarvestMapUtils.convertLocalToGlobal(x, y, measurement) }
-    } -- global coordinates for distance calculations
-    division[index] = node
-    return node
-end
-
 -- serialize the given node via the ACE library
 -- serializing the data decreases the loadtimes and file size a lot
 function Serialize(data)
@@ -1078,13 +1003,155 @@ function GetSubDivisionCoords(x, y, measurement)
     return x, y
 end
 
+-- TODO Rework and split this function.
+function HarvestDB.loadDivisionsOnMapTODOrework(type, map, measurement)
+    assert(type, "Type cannot be empty")
+    assert(map, "Map cannot be empty")
+    assert(measurement, "Options cannot be empty")
+
+    local unpack = _G["unpack"]
+    local zo_max = _G["zo_max"]
+    local pairs = _G["pairs"]
+    local localToGlobal = HarvestMapUtils.convertLocalToGlobal
+    -- create table if it doesn't exist yet
+    local saveFile = GetSaveFile(map)
+
+    saveFile.data[map] = (saveFile.data[map]) or {}
+    saveFile.data[map][type] = (saveFile.data[map][type]) or {}
+    if not saveFile.data[map] or not saveFile.data[map][type] then
+        HarvestDebugUtils.debug("No data for type " .. Harvest.GetLocalization("pintype" .. type) .. " on map " .. map)
+    end
+    local nodes = saveFile.data[map][type]
+    local timestamp = Harvest.GetCurrentTimestamp()
+    local maxIndex = 0
+    local newNode, deserializedNode
+    local cachedNodes = {}
+    local validNode, changedNode
+    local valid
+    local count = 0
+    -- deserialize the nodes and check their node version
+    for index, node in pairs(nodes) do
+        deserializedNode = Deserialize(node)
+        validNode = false
+        if deserializedNode and ((Harvest.GetMaxTimeDifference() == 0) or ((timestamp - (deserializedNode[Harvest.TIME] or 0)) < Harvest.GetMaxTimeDifference())) then
+            -- TODO FIXME why time always 0?
+            newNode = { typeId = type, data = deserializedNode, time = 0, global = { localToGlobal(deserializedNode[Harvest.X], deserializedNode[Harvest.Y], measurement) } }
+            validNode, changedNode = CheckNodeVersion(type, newNode, map, measurement)
+            if validNode then
+                count = count + 1
+                cachedNodes[index] = newNode
+                maxIndex = zo_max(maxIndex, index)
+                if changedNode then
+                    nodes[index] = Serialize(newNode.data)
+                end
+            end
+        end
+        -- nodes which weren't loaded are invalid and can be deleted from the save file
+        if not validNode then
+            nodes[index] = nil
+        end
+    end
+    --HarvestDebugUtils.debug("Found " .. count .. " nodes of type " .. pinTypeId)
+    -- merge close nodes based on more accurate map size measurements
+    local dx, dy, x1, y1, x2, y2
+    local nodeA, nodeB
+    local distance = Harvest.GetGlobalMinDistanceBetweenPins()
+    -- merge close nodes
+    local totalMerged = 0
+    for i = 1, maxIndex do
+        if cachedNodes[i] then
+            nodeA = cachedNodes[i]
+            x1, y1 = unpack(nodeA.global)
+            for j = i + 1, maxIndex do
+                if cachedNodes[j] then
+                    nodeB = cachedNodes[j]
+                    x2, y2 = unpack(nodeB.global)
+
+                    dx = x1 - x2
+                    dy = y1 - y2
+                    if dx * dx + dy * dy < distance then
+                        -- keep the node with the more recent timestamp
+                        if (nodeA.data[Harvest.TIME] or 0) > (nodeB.data[Harvest.TIME] or 0) then
+                            if nodeB.data[Harvest.ITEMS] then
+                                nodeA.data[Harvest.ITEMS] = nodeA.data[Harvest.ITEMS] or {}
+                                for itemId, stamp in pairs(nodeB.data[Harvest.ITEMS]) do
+                                    nodeA.data[Harvest.ITEMS][itemId] = zo_max(nodeA.data[Harvest.ITEMS][itemId] or 0, stamp)
+                                end
+                            end
+                            cachedNodes[j] = nil
+                            nodes[j] = nil
+                            nodes[i] = Serialize(nodeA.data)
+                        else
+                            if nodeA.data[Harvest.ITEMS] then
+                                nodeB.data[Harvest.ITEMS] = nodeB.data[Harvest.ITEMS] or {}
+                                for itemId, stamp in pairs(nodeA.data[Harvest.ITEMS]) do
+                                    nodeB.data[Harvest.ITEMS][itemId] = zo_max(nodeB.data[Harvest.ITEMS][itemId] or 0, stamp)
+                                end
+                            end
+                            cachedNodes[i] = nil
+                            nodes[i] = nil
+                            nodes[j] = Serialize(nodeB.data)
+                            break
+                        end
+                        totalMerged = totalMerged + 1
+                    end
+                end
+            end
+        end;
+    end
+    if totalMerged > 0 then
+        HarvestDebugUtils.debug("Duplicates merged: " .. totalMerged .. " of type " .. type)
+    end
+
+    local identifier, timestamp, x, y, xg, yg, items
+
+    if not isTypeCached(type) then
+        setTypeCached(type, true)
+        for index, node in pairs(cachedNodes) do
+            timestamp = node.time
+            x = node.data[Harvest.X]
+            y = node.data[Harvest.Y]
+            xg = node.global[1]
+            yg = node.global[2]
+            items = node.data[Harvest.ITEMS]
+            local id = addNodeToCache(type, timestamp, x, y, xg, yg, items)
+        end
+
+        local locationsNumber = 0
+        local minNodes = 6666666
+        local maxNodes = 0
+        local totalNodes = 0
+        local size
+        for key, location in pairs(locationCache.locations) do
+            size = #location
+            if size < minNodes then minNodes = size
+            end
+            if size > maxNodes then maxNodes = size
+            end
+            totalNodes = totalNodes + size
+            locationsNumber = locationsNumber + 1
+        end
+        --HarvestDebugUtils.debug("Nodes sorted by their location. Total: " .. totalNodes)
+        --HarvestDebugUtils.debug("Locations size: " .. locationCache.locationSize)
+        --HarvestDebugUtils.debug("Locations number: " .. locationsNumber)
+        --HarvestDebugUtils.debug("Max for location: " .. maxNodes)
+        --HarvestDebugUtils.debug("Min for location: " .. minNodes)
+        if totalNodes > 0 then
+            HarvestDebugUtils.debug("Average nodes per location: " .. (totalNodes / locationsNumber))
+        else
+            HarvestDebugUtils.debug("No nodes found for type " .. type .. " on map " .. map)
+        end
+    else
+        --HarvestDebugUtils.debug("Nodes of type " .. pinTypeId .. " already in cache.")
+    end
+end
+
 -- loads the nodes to cache and returns them
 -- if no measurement was given and the nodes could thus not be loaded to the cache,
 -- return an empty list instead
-function GetSubDivisionsOnMap(pinTypeId, map, measurement)
+local function GetSubDivisionsOnMap(pinTypeId, map, measurement)
     assert(map, "Map cannot be empty")
     assert(measurement, "Measurement cannot be empty")
-    checkAndUpdateCache(map, measurement)
     -- data is stored as ACE strings
     -- this functions deserializes the strings and saves the results in the cache
     if not HarvestDB.cache[map] then
@@ -1139,7 +1206,7 @@ function GetSubDivisionsOnMap(pinTypeId, map, measurement)
             nodes[index] = nil
         end
     end
-    HarvestDebugUtils.debug("Found " .. count .. " nodes of type " .. pinTypeId)
+    --HarvestDebugUtils.debug("Found " .. count .. " nodes of type " .. pinTypeId)
     -- merge close nodes based on more accurate map size measurements
     local dx, dy, x1, y1, x2, y2
     local nodeA, nodeB
@@ -1187,7 +1254,7 @@ function GetSubDivisionsOnMap(pinTypeId, map, measurement)
             end
         end;
     end
-    HarvestDebugUtils.debug("Duplicates merged: " .. totalMerged .. " of type " .. pinTypeId)
+    --HarvestDebugUtils.debug("Duplicates merged: " .. totalMerged .. " of type " .. pinTypeId)
 
     local subdivisions = { width = zo_floor(1 / Harvest.GetPinVisibleDistance() * measurement.scaleX) + 1 }
     local subdivisionX, subdivisionY, index
@@ -1197,43 +1264,6 @@ function GetSubDivisionsOnMap(pinTypeId, map, measurement)
         subdivisionX, subdivisionY = GetSubDivisionCoords(node.data[1], node.data[2], measurement)
         subdivisions[subdivisionX + subdivisionY * subdivisions.width] = subdivisions[subdivisionX + subdivisionY * subdivisions.width] or {}
         subdivisions[subdivisionX + subdivisionY * subdivisions.width][index] = node
-    end
-    if not isTypeCached(pinTypeId) then
-        setTypeCached(pinTypeId, true)
-        for index, node in pairs(cachedNodes) do
-            type = node.typeId
-            timestamp = node.time
-            x = node.data[Harvest.X]
-            y = node.data[Harvest.Y]
-            xg = node.global[1]
-            yg = node.global[2]
-            items = node.data[Harvest.ITEMS]
-            local id = addNodeToCache(type, timestamp, x, y, xg, yg, items)
-            node.mappingToNewCache = id
-        end
-
-        local locationsNumber = 0
-        local minNodes = 6666666
-        local maxNodes = 0
-        local totalNodes = 0
-        local size
-        for key, location in pairs(locationCache.locations) do
-            size = #location
-            if size < minNodes then minNodes = size
-            end
-            if size > maxNodes then maxNodes = size
-            end
-            totalNodes = totalNodes + size
-            locationsNumber = locationsNumber + 1
-        end
-        HarvestDebugUtils.debug("Nodes sorted by their location. Total: " .. totalNodes)
-        --HarvestDebugUtils.debug("Locations size: " .. locationCache.locationSize)
-        --HarvestDebugUtils.debug("Locations number: " .. locationsNumber)
-        --HarvestDebugUtils.debug("Max for location: " .. maxNodes)
-        --HarvestDebugUtils.debug("Min for location: " .. minNodes)
-        HarvestDebugUtils.debug("Average nodes per location: " .. (totalNodes / locationsNumber))
-    else
-        HarvestDebugUtils.debug("Nodes of type " .. pinTypeId .. " already in cache.")
     end
     HarvestDB.cache[map].subdivisions[pinTypeId] = subdivisions
     return subdivisions

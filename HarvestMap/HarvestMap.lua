@@ -24,16 +24,7 @@ function Harvest.Verbose( message )
 	end
 end
 
-
---[[
--- Just an example of howto use controller.
-]]--
-assert(HarvestDB, "HarvestDB is nil")
-local dbController = HarvestDbController:new(HarvestDB, CALLBACK_MANAGER) -- Eso global manager used, just for example.
-dbController:start() -- Now its started and listens for requests.
-local nodeResolver = HarvestNodeResolver:new(HarvestDB, CALLBACK_MANAGER, {})
--- TODO recreate node resolver on each map/zone change. Pass proper options/measurements (cache them somewhere).
-nodeResolver:start()
+local controller = HarvestMapController:new(HarvestDB, CALLBACK_MANAGER)
 
 -- this function returns the pinTypeId for the given item id and node name
 function Harvest.GetPinTypeId( itemId, nodeName )
@@ -345,8 +336,8 @@ function Harvest.OnLoad(eventCode, addOnName)
 	-- repair this data
 	Harvest.FixSaveFile()
 	-- initialize pin callback functions
-	Harvest.InitializeMapMarkers()
-	Harvest.InitializeCompassMarkers()
+	-- Harvest.InitializeMapMarkers()
+	-- Harvest.InitializeCompassMarkers()
 	-- create addon option panels
 	Harvest.InitializeOptions()
 	-- initialize bonus features
@@ -359,6 +350,7 @@ function Harvest.OnLoad(eventCode, addOnName)
 	-- add these callbacks only after the addon has loaded to fix SnowmanDK's bug (comment section 20.12.15)
 	EVENT_MANAGER:RegisterForEvent("HarvestMap", EVENT_LOOT_RECEIVED, Harvest.OnLootReceived)
 	EVENT_MANAGER:RegisterForEvent("HarvestMap", EVENT_LOOT_UPDATED, Harvest.OnLootUpdated)
+    controller:start()
 
 end
 
