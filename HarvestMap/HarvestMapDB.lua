@@ -104,6 +104,11 @@ end
 --
 local idCache
 
+--- @return cache indexed by node identifiers.
+function HarvestDB.getIdCache()
+    return idCache
+end
+
 ---
 -- Cache of nodes indexed by their location.
 -- Contains node for current map, uses options(measurments).
@@ -115,7 +120,7 @@ local locationCache
 --
 local typeCache
 
---- Genral propeties of current map.
+--- General propeties of current map.
 local map, options
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -408,6 +413,21 @@ function HarvestDB.loadNodesOfTypeIfNecessary(type)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
+--- Returns copy of list from cache of nodes by their type.
+-- @param type type of node - typeId.
+-- @return list with nodes identifiers.
+--
+function HarvestDB.getNodesListOfType(type)
+    HarvestDB.loadNodesOfTypeIfNecessary(type)
+    local typeData = typeCache[type]
+    if typeData ~= nil then
+        return ZO_DeepTableCopy(typeCache[type])
+    else
+        return nil
+    end
+end
+
+------------------------------------------------------------------------------------------------------------------------
 -- END Interface of storage to be used by controllers ------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -426,6 +446,7 @@ function HarvestDB.forNodesOfType(type, callback)
         HarvestDebugUtils.debug("No pins of type " .. type .. " in cache.")
         return
     end
+    HarvestDebugUtils.debug(#typeCache[type] .. " pins of type " .. type .. " in cache.")
     for index, id in pairs(typeCache[type]) do
         callback(id, idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
             idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id])

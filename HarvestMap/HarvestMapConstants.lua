@@ -161,6 +161,7 @@ Harvest.itemId2PinType = {
     [23134] = Harvest.BLACKSMITH,
     [23135] = Harvest.BLACKSMITH,
     [71198] = Harvest.BLACKSMITH,
+
     [812] = Harvest.CLOTHING,
     [4464] = Harvest.CLOTHING,
     [23129] = Harvest.CLOTHING,
@@ -171,6 +172,8 @@ Harvest.itemId2PinType = {
     [33219] = Harvest.CLOTHING,
     [33220] = Harvest.CLOTHING,
     [71200] = Harvest.CLOTHING,
+    [42871] = Harvest.CLOTHING,
+
     [45806] = Harvest.ENCHANTING,
     [45807] = Harvest.ENCHANTING,
     [45808] = Harvest.ENCHANTING,

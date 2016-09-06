@@ -55,7 +55,7 @@ function HarvestDbController:onAddNodeRequest(map, x, y, xg, yg, type, timestamp
     HarvestDebugUtils.debug("Try to add node with type " .. type)
     local id = self.storage.addNode(type, timestamp, x, y, xg, yg, items)
     self.callbackController:FireCallbacks(NODE_ADDED_EVENT, id)
-    HarvestDebugUtils.debug("Node of type " .. type .. " added with id: " .. id)
+    HarvestDebugUtils.debug("Node of type " .. type .. " with id: " .. id .. " successfully added.")
 end
 
 ---
@@ -72,7 +72,7 @@ function HarvestDbController:onUpdateNodeRequest(id, timestamp, x, y, xg, yg, it
     HarvestDebugUtils.debug("Try to update node with id " .. id)
     self.storage.updateNode(id, timestamp, x, y, xg, yg, item)
     self.callbackController:FireCallbacks(NODE_UPDATED_EVENT, id)
-    HarvestDebugUtils.debug("Node with id " .. id .. " updated")
+    HarvestDebugUtils.debug("Node with id " .. id .. " update finished")
 end
 
 ---

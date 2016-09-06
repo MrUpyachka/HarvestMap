@@ -4,8 +4,11 @@
 --
 HarvestMapController = {}
 
---- Reference to LibMapPins.
-local LMP = LibStub("LibMapPins-1.0")
+
+--[[ TODO list:
+-- Move pins displaying logic to MapPinController.
+--
+ ]] --
 
 --- Creates an instance of controller.
 -- @param s storage of nodes.
@@ -42,60 +45,16 @@ function HarvestMapController:configureEnvironmentForMap(map, options)
     self.nodeResolver:start()
 end
 
-local function displayPin(id, type, timestamp, x, y, xg, yg, items)
-    local pinType = Harvest.GetPinType(type)
-    LMP:CreatePin(pinType, id, x, y)
-end
-
---- Callback for displaying of pins with spicified type on map.
-function HarvestMapController:onDisplayPinTypeOnMap(type)
-    HarvestDebugUtils.debug("Try display pin type <" .. Harvest.GetLocalization("pintype" .. type) .. ">")
-    self.storage.forNodesOfType(type, displayPin)
-    --[[
-    if GetMapType() <= MAPTYPE_ZONE and LMP:IsEnabled(Harvest.GetPinType(type)) then
-        HarvestDebugUtils.debug("Try display pin type <" .. Harvest.GetLocalization("pintype" .. type) .. ">")
-        self.storage.forNodesOfType(type, displayPin)
-    end
-    ]]--
-end
-
---- Registers all types of pins on map (for filtering and others).
-function HarvestMapController:registerPinTypes()
-    for _, pinType in pairs(Harvest.PINTYPES) do
-        -- TODO investigate this more.
-        local typeKey = Harvest.GetPinType(pinType)
-        local localizedName = Harvest.GetLocalization("pintype" .. pinType)
-        local pinLayout = HarvestMapUtils.getCurrentMapPinLayout(pinType)
-        LMP:AddPinType(typeKey, function() self:onDisplayPinTypeOnMap(pinType) end, nil, pinLayout, Harvest.tooltipCreator)
-        if pinType ~= Harvest.TOUR then
-            local pve, pvp, imperial = LMP:AddPinFilter(typeKey, localizedName,
-                false, Harvest.savedVars["settings"].isPinTypeVisible)
-            local fun = function(button, state) Harvest.SetPinTypeVisible(pinType, state) end
-            ZO_CheckButton_SetToggleFunction(pve, fun)
-            ZO_CheckButton_SetToggleFunction(pvp, fun)
-            ZO_CheckButton_SetToggleFunction(imperial, fun)
-        end
-        HarvestDebugUtils.debug("Filter of pin type <" .. localizedName .. "> registered")
-    end
-end
-
 --- Callback function for OnWorldMapChanged callback.
 --
 function HarvestMapController:onMapChanged()
+    -- TODO investigate issue with heist maps.
     local map, x, y, options = HarvestMapUtils.GetMapInformation(true)
     if map ~= self.map then
         self.map = map
         HarvestDebugUtils.debug("Map changed to: " .. map)
         self:configureEnvironmentForMap(map, options)
-        if not self.pinTypesRegistered then
-            -- Register them once.
-            self.pinTypesRegistered = true
-            self:registerPinTypes()
-        end
-        -- Next cycle removes all pins from LMP
-        for _, pinType in pairs(Harvest.PINTYPES) do
-            LMP:RefreshPins(Harvest.GetPinType(pinType))
-        end
+        self.pinController:onMapChanged(map)
     else
         HarvestDebugUtils.debug("Map is not changed: " .. map)
     end
@@ -105,9 +64,10 @@ end
 -- Starts listening of callbacks/events and their processing.
 --
 function HarvestMapController:start()
+    self.pinController = HarvestMapPinController:new(self.storage, self.callbackController)
     -- Register for ESO callback about displayed map changes.
     CALLBACK_MANAGER:RegisterCallback("OnWorldMapChanged", self.onMapChanged, self)
-
+    self.pinController:start()
     HarvestDebugUtils.debug("HarvestMapController controller started.")
 end
 
@@ -116,7 +76,7 @@ end
 --
 function HarvestMapController:stop()
     CALLBACK_MANAGER:UnregisterCallback("OnWorldMapChanged", self.onMapChanged)
-
     self:stopControllers()
+    self.pinController:stop()
     HarvestDebugUtils.debug("HarvestMapController controller stopped.")
 end
