@@ -28,21 +28,15 @@ end
 ---
 -- Callback method to handle request for node deletion.
 -- @param map map which contain interest node.
--- @param nodeTag identifier of node. nodeTag in harvestDB context.
+-- @param id identifier of node.
 --
-function HarvestDbController:onDeleteNodeRequest(map, nodeTag)
-    local node = self.storage.GetNodeFromMap(map, nodeTag)
-    local pinTypeId = node.pinTypeId -- TODO return node data with pinTypeId from DB. Not implemented yet
-    self.storage.DeleteNode(map, nodeTag)
-
-    local pinType = Harvest.GetPinType(pinTypeId)
-    -- TODO Seems that we can avoid pinTypeId parameter for deletion of pin. By optimization of storages in ralted libraries.
-    self.callbackController:FireCallbacks(self, NODE_DELETED_EVENT, nodeTag, pinType)
+function HarvestDbController:onDeleteNodeRequest(id)
+    local type, timestamp, x, y, xg, yg, items = self.storage.deleteNode(id)
+    self.callbackController:FireCallbacks(NODE_DELETED_EVENT, id, type)
 end
 
 ---
 -- Callback method to handle request to add node.
--- @param map map which contain interest node.
 -- @param x abscissa of point.
 -- @param y ordinate of point.
 -- @param xg global abscissa of node.
@@ -51,7 +45,7 @@ end
 -- @param timestamp request firing time. In milliseconds.
 -- @param items discovered items.
 --
-function HarvestDbController:onAddNodeRequest(map, x, y, xg, yg, type, timestamp, items)
+function HarvestDbController:onAddNodeRequest(x, y, xg, yg, type, timestamp, items)
     HarvestDebugUtils.debug("Try to add node with type " .. type)
     local id = self.storage.addNode(type, timestamp, x, y, xg, yg, items)
     self.callbackController:FireCallbacks(NODE_ADDED_EVENT, id)

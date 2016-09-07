@@ -4,6 +4,7 @@ end
 
 local COMPASS_PINS = LibStub("CustomCompassPins")
 
+-- TODO move to defaults. wrong dependency splitting.
 function Harvest.additionalLayout( pin )
 	local color = COMPASS_PINS.pinLayouts[ pin.pinType ].color
 	if not color then
@@ -98,7 +99,8 @@ function Harvest.InitializeCompassMarkers()
     -- TODO implement compass controller and use callback controller wich passed through constructor.
 
     -- Listen Event from controller. It this case HarvestDB know nothing about events and provides only interface to storage.
-    CALLBACK_MANAGER:RegisterCallback(HarvestEvents.NODE_DELETED_EVENT, function(event, nodeTag, pinType)
+    CALLBACK_MANAGER:RegisterCallback(HarvestEvents.NODE_DELETED_EVENT, function(event, nodeTag, type)
+		local pinType = Harvest.GetPinType(type)
 		COMPASS_PINS:RemovePin(nodeTag, pinType)
 	end)
 	-- initialize each compass pin type

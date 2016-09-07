@@ -43,7 +43,7 @@ function COMPASS_PINS.Initialize()
 	COMPASS_PINS.pinLayouts = {}
 	COMPASS_PINS.visiblePins = {}
 	COMPASS_PINS.pinTables = {}
-	
+
 	COMPASS_PINS.pinControlPool = ZO_ControlPool:New("ZO_MapPin", PARENT, "CustomPin")
 	COMPASS_PINS.defaultMeasurement = {scaleX = 0, scaleY = 0}
 	COMPASS_PINS.mapMeasurement = COMPASS_PINS.defaultMeasurement
@@ -95,7 +95,7 @@ function COMPASS_PINS.Refresh()
 		COMPASS_PINS.checkRefresh = true
 		return
 	end
-	
+
 	COMPASS_PINS.checkRefresh = false
 	local mapTexture = GetMapTileTexture()
 	-- if the map changed, we will have to refresh the pins
@@ -113,7 +113,7 @@ end
 -- pinCallbacks should be a function, which will be called when new pins should be created
 -- layout should be a table, which defines a pin's texture and maxDistance
 function COMPASS_PINS:AddCustomPin(pinType, pinCallback, layout)
-	-- check if the given arguments have the corrent type, 
+	-- check if the given arguments have the corrent type,
 	-- to prevent errors in the OnUpdate callback, which are a lot harder to debug
 	if type(pinType) ~= "string" or COMPASS_PINS.pinLayouts[pinType] ~= nil or
 			type(pinCallback) ~= "function" or type(layout) ~= "table" then
@@ -122,7 +122,7 @@ function COMPASS_PINS:AddCustomPin(pinType, pinCallback, layout)
 	layout.maxDistance = layout.maxDistance or 0.02
 	layout.maxDistance2 = layout.maxDistance * layout.maxDistance
 	layout.texture = layout.texture or "EsoUI/Art/MapPins/hostile_pin.dds"
-	
+
 	COMPASS_PINS.pinCallbacks[pinType] = pinCallback
 	COMPASS_PINS.pinLayouts[pinType] = layout
 	COMPASS_PINS.pinTables[pinType] = COMPASS_PINS.pinTables[pinType] or {}
@@ -131,7 +131,7 @@ end
 -- creates a pin of the given pinType at the given location
 function COMPASS_PINS:CreatePin(pinType, pinTag, xLoc, yLoc, skipDeletion)
 	if not COMPASS_PINS.pinTables[pinType] then return end
-	
+
 	local data = {}
 	data.xLoc = xLoc or 0
 	data.yLoc = yLoc or 0
@@ -241,10 +241,11 @@ function COMPASS_PINS:RefreshPins(pinType)
 			for pinType in pairs(COMPASS_PINS.pinCallbacks) do
 				COMPASS_PINS.needsRefresh[pinType] = true
 			end
-		end
+        end
+        d("Map visible, avoid compass pins refresh")
 		return
 	end
-	
+
 	if pinType then
 		COMPASS_PINS.needsRefresh[pinType] = false
 	else
@@ -259,7 +260,8 @@ function COMPASS_PINS:RefreshPins(pinType)
 		for _, layout in pairs(COMPASS_PINS.pinLayouts) do
 			layout.maxDistance2 = layout.maxDistance * layout.maxDistance
 		end
-	end
+    end
+    d("Refresh pins on compass")
 	-- remove the old pins...
 	COMPASS_PINS:RemovePins(pinType)
 	-- ...and call the callback functions to get new pins
@@ -281,7 +283,7 @@ function COMPASS_PINS.Update()
 	if PARENT:IsHidden() then
 		return
 	end
-	
+
 	if COMPASS_PINS.checkRefresh then
 		COMPASS_PINS:Refresh()
 	end
@@ -292,7 +294,7 @@ function COMPASS_PINS.Update()
 			COMPASS_PINS.RefreshPins(pinType)
 		end
 	end
-	
+
 	-- update the compass pin controls
 	local heading = GetPlayerCameraHeading()
 	if not heading then return end
@@ -323,7 +325,7 @@ function COMPASS_PINS.Update()
 			end
 		end
 	end
-	
+
 	-- some pins might be out of range and thus weren't updated by the loop before
 	for pinTag, pinData in pairs(COMPASS_PINS.visiblePins) do
 		if pinData.lastUpdate < frameTime then
@@ -334,7 +336,7 @@ function COMPASS_PINS.Update()
 			COMPASS_PINS.visiblePins[pinTag] = nil
 		end
 	end
-	
+
 end
 
 function COMPASS_PINS.UpdatePin(x, y, heading, pinTag, pinData, layout)
@@ -350,7 +352,7 @@ function COMPASS_PINS.UpdatePin(x, y, heading, pinTag, pinData, layout)
 		COMPASS_PINS.visiblePins[pinTag] = nil
 		return
 	end
-	
+
 	-- calculate angle between the camera's view direction and the pin
 	-- the angle is in [-pi, pi]
 	local angle = -atan2(xDif, yDif)
@@ -371,7 +373,7 @@ function COMPASS_PINS.UpdatePin(x, y, heading, pinTag, pinData, layout)
 		COMPASS_PINS.visiblePins[pinTag] = nil
 		return
 	end
-	
+
 	local pinControl
 	if pinData.pinKey then
 		pinControl = COMPASS_PINS.pinControlPool:GetExistingObject(pinData.pinKey)

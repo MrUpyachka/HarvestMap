@@ -310,17 +310,17 @@ function Harvest.InitializeMapMarkers()
 
     LMP:AddPinType(Harvest.GetPinType("Debug"),
         function(g_mapPinManager) --gets called when debug is enabled
-        if IsInGamepadPreferredMode() then
+            if IsInGamepadPreferredMode() then
+                for _, pinTypeId in pairs(Harvest.PINTYPES) do
+                    local pinType = Harvest.GetPinType(pinTypeId)
+                    LMP:SetClickHandlers(pinType, nil, nil)
+                end
+                return
+            end
             for _, pinTypeId in pairs(Harvest.PINTYPES) do
                 local pinType = Harvest.GetPinType(pinTypeId)
-                LMP:SetClickHandlers(pinType, nil, nil)
+                LMP:SetClickHandlers(pinType, HarvestDebugUtils.debugHandler, nil)
             end
-            return
-        end
-        for _, pinTypeId in pairs(Harvest.PINTYPES) do
-            local pinType = Harvest.GetPinType(pinTypeId)
-            LMP:SetClickHandlers(pinType, HarvestDebugUtils.debugHandler, nil)
-        end
         end,
         nil,
         HarvestMapUtils.getCurrentMapPinLayout(1),

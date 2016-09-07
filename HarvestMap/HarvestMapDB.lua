@@ -266,7 +266,7 @@ local function deleteNodeFromCache(id)
     local type, timestamp, x, y, xg, yg, items = idCache:delete(id) -- TODO supress local variables.
 
     -- Delete from location cache.
-    local closestLocations = locationCache:getClosestLocations(xg, xy)
+    local closestLocations = locationCache:getClosestLocations(xg, yg)
     local dx, dy
 
     for _, location in pairs(closestLocations) do
@@ -406,7 +406,7 @@ end
 function HarvestDB.loadNodesOfTypeIfNecessary(type)
     if not isTypeCached(type) then
         HarvestDB.loadDivisionsOnMapTODOrework(type, map, options)
-        HarvestDebugUtils.debug("Pins of type " .. Harvest.GetLocalization("pintype" .. type) .. " loaded to cache.")
+        --HarvestDebugUtils.debug("Pins of type " .. Harvest.GetLocalization("pintype" .. type) .. " loaded to cache.")
     else
         -- HarvestDebugUtils.debug("Pins of type " .. Harvest.GetLocalization("pintype" .. type) .. " already loaded to cache. Avoid multiple loading.")
     end
@@ -443,10 +443,10 @@ function HarvestDB.forNodesOfType(type, callback)
     HarvestDB.loadNodesOfTypeIfNecessary(type)
     local typeNodes = typeCache[type]
     if not typeNodes then
-        HarvestDebugUtils.debug("No pins of type " .. type .. " in cache.")
+        --HarvestDebugUtils.debug("No pins of type " .. type .. " in cache.")
         return
     end
-    HarvestDebugUtils.debug(#typeCache[type] .. " pins of type " .. type .. " in cache.")
+    --HarvestDebugUtils.debug(#typeCache[type] .. " pins of type " .. type .. " in cache.")
     for index, id in pairs(typeCache[type]) do
         callback(id, idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
             idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id])
@@ -1040,7 +1040,7 @@ function HarvestDB.loadDivisionsOnMapTODOrework(type, map, measurement)
     saveFile.data[map] = (saveFile.data[map]) or {}
     saveFile.data[map][type] = (saveFile.data[map][type]) or {}
     if not saveFile.data[map] or not saveFile.data[map][type] then
-        HarvestDebugUtils.debug("No data for type " .. Harvest.GetLocalization("pintype" .. type) .. " on map " .. map)
+        --HarvestDebugUtils.debug("No data for type " .. Harvest.GetLocalization("pintype" .. type) .. " on map " .. map)
     end
     local nodes = saveFile.data[map][type]
     local timestamp = Harvest.GetCurrentTimestamp()
@@ -1160,7 +1160,7 @@ function HarvestDB.loadDivisionsOnMapTODOrework(type, map, measurement)
         if totalNodes > 0 then
             HarvestDebugUtils.debug("Average nodes per location: " .. (totalNodes / locationsNumber))
         else
-            HarvestDebugUtils.debug("No nodes found for type " .. type .. " on map " .. map)
+            --HarvestDebugUtils.debug("No nodes found for type " .. type .. " on map " .. map)
         end
     else
         --HarvestDebugUtils.debug("Nodes of type " .. pinTypeId .. " already in cache.")
@@ -1186,7 +1186,7 @@ local function GetSubDivisionsOnMap(pinTypeId, map, measurement)
     end
     -- only deserialize/load the data if it hasn't been loaded already
     if isTypeCached(pinTypeId) then
-        HarvestDebugUtils.debug("Pins of type " .. pinTypeId .. " already loaded. Avoid multiple loading.")
+        --HarvestDebugUtils.debug("Pins of type " .. pinTypeId .. " already loaded. Avoid multiple loading.")
         return HarvestDB.cache[map].subdivisions[pinTypeId]
     end
     local unpack = _G["unpack"]

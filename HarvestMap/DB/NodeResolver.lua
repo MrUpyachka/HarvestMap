@@ -25,13 +25,9 @@ end
 -- @param timestamp event time. In milliseconds.
 -- @param item discovered item.
 --
-function HarvestNodeResolver:onHarvested(map, x, y, measurement, type, timestamp, item)
+function HarvestNodeResolver:onHarvested(x, y, type, timestamp, item)
     HarvestDebugUtils.debug("Try to resolve node data for type " .. type)
-    if not HarvestDebugUtils.validatePinData(map, x, y, measurement, type, item) then
-        HarvestDebugUtils.debug("See validation errors")
-        return
-    end
-    local xGlobal, yGlobal = HarvestMapUtils.convertLocalToGlobal(x, y, measurement)
+    local xGlobal, yGlobal = HarvestMapUtils.convertLocalToGlobal(x, y, self.options)
     -- TODO get close by type.
     -- TODO assert that such type loaded to cache from save file.
     local existingId = self.storage.getCloseNodeOfType(x, y, xGlobal, yGlobal, type)
@@ -47,7 +43,7 @@ function HarvestNodeResolver:onHarvested(map, x, y, measurement, type, timestamp
         if ItemUtils.isItemsListRequired(type) then
             items = { [item] = timestamp }
         end
-        self.callbackController:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, map, x, y, xGlobal, yGlobal, type, timestamp, items)
+        self.callbackController:FireCallbacks(HarvestEvents.ADD_NODE_REQUEST, x, y, xGlobal, yGlobal, type, timestamp, items)
     end
 end
 

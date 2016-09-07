@@ -686,7 +686,7 @@ function Harvest.GetLocalizedTooltip(pin)
             table.insert(lines, table.concat(text, ", "))
         end
     end
-    lines[1] = lines[1] .. nodeId
+    lines[1] = lines[1] .. "_" .. nodeId
     for _, line in ipairs(lines) do
         table.insert(result, line)
     end

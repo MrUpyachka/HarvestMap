@@ -24,7 +24,7 @@ function Harvest.Verbose(message)
     end
 end
 
-local controller = HarvestMapController:new(HarvestDB, CALLBACK_MANAGER)
+local controller = HarvestMapController.new(HarvestDB, CALLBACK_MANAGER)
 
 -- this function returns the pinTypeId for the given item id and node name
 function Harvest.GetPinTypeId(itemId, nodeName)
@@ -147,7 +147,7 @@ end
 
 function Harvest.ProcessData(map, x, y, measurement, pinTypeId, itemId)
     HarvestDebugUtils.debug("Try process data. Type: " .. pinTypeId)
-    CALLBACK_MANAGER:FireCallbacks(HarvestEvents.NODE_HARVESTED_EVENT, map, x, y, measurement, pinTypeId, GetTimeStamp(), itemId)
+    CALLBACK_MANAGER:FireCallbacks(HarvestEvents.NODE_HARVESTED_EVENT, x, y, pinTypeId, GetTimeStamp(), itemId)
 end
 
 function Harvest.OnUpdate(time)

@@ -9,14 +9,12 @@ HarvestEvents = {}
 
 --- Name for request to delete node.
 -- Required parameters:
--- @param map map which contain interest node.
--- @param nodeTag identifier of node. nodeTag in harvestDB context.
+-- @param id identifier of node.
 --
 HarvestEvents.DELETE_NODE_REQUEST = "HARVEST_DELETE_NODE_REQUEST"
 
 ---
 -- Name for request to add new node.
--- @param map map which contain detected node.
 -- @param x abscissa of point.
 -- @param y ordinate of point.
 -- @param xg global abscissa of point.
@@ -45,8 +43,8 @@ HarvestEvents.UPDATE_NODE_REQUEST = "HARVEST_UPDATE_NODE_REQUEST"
 
 --- Name of event to notify that node with identifier and type removed from storage.
 -- Parameters:
--- @param nodeTag identifier of node. nodeTag in harvestDB context.
--- @param pinType type of pin.
+-- @param id identifier of node.
+-- @param type type of pin.
 --
 HarvestEvents.NODE_DELETED_EVENT = "HARVEST_NODE_DELETED_EVENT"
 
@@ -63,10 +61,8 @@ HarvestEvents.NODE_ADDED_EVENT = "HARVEST_NODE_ADDED_EVENT" -- TODO implement ha
 HarvestEvents.NODE_UPDATED_EVENT = "HARVEST_NODE_UPDATED_EVENT" -- TODO implement handlers
 
 --- Notification from harvesting handler about finished process.
--- @param map map which contain detected node.
 -- @param x abscissa of point.
 -- @param y ordinate of point.
--- @param measurement the measurement of the map, used to properly calculate distances between the new and the old pins.
 -- @param pinTypeId type of detected node.
 -- @param timestamp timestamp in milliseconds.
 -- @param itemId discovered item.

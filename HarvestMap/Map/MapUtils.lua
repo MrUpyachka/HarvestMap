@@ -75,16 +75,19 @@ end
 -- @return measurements the measurement of map.
 --
 function HarvestMapUtils.GetMapInformation(viewedMap)
+    --[[
     local changed
     if not viewedMap then
         -- try to change map if not specified.
         changed = (SetMapToPlayerLocation() == SET_MAP_RESULT_MAP_CHANGED)
     end
-
+    ]]--
     local mapMeasurements = GPS:GetCurrentMapMeasurements(viewedMap ~= false)
+    --[[
     if not viewedMap then
         SetMapToPlayerLocation() -- TODO FIXME why called twice?
     end
+    ]]--
     -- delves tend to be scaled down on the zone map, so we need to return a smaller value
     if HarvestMapUtils.isMeasurementsModificationRequired(mapMeasurements) then
         local scale = math.sqrt(165)
@@ -98,9 +101,11 @@ function HarvestMapUtils.GetMapInformation(viewedMap)
 
     local map = HarvestMapUtils.getCurrentMap()
     local x, y = GetMapPlayerPosition("player")
+    --[[
     if changed then
         CALLBACK_MANAGER:FireCallbacks("OnWorldMapChanged")
     end
+    ]]--
     return map, x, y, mapMeasurements
 end
 
