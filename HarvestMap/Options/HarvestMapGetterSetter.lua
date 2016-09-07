@@ -150,7 +150,7 @@ end
 function Harvest.SetDisplayedCompassDistance( value )
 	for _, pinTypeId in pairs(Harvest.PINTYPES) do
 		Harvest.savedVars["settings"].compassLayouts[pinTypeId].maxDistance = value * math.sqrt(Harvest.GetGlobalMinDistanceBetweenPins()) / 10
-		COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
+		--COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
 	end
 end
 
@@ -162,7 +162,7 @@ end
 function Harvest.SetDisplayedFOV( value )
 	for _, pinTypeId in pairs(Harvest.PINTYPES) do
 		Harvest.savedVars["settings"].compassLayouts[ pinTypeId ].FOV = 2 * value * math.pi / 360
-		COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
+		--COMPASS_PINS:RefreshPins(Harvest.GetPinType(pinTypeId))
 	end
 end
 

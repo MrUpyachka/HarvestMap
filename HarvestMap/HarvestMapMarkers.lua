@@ -117,16 +117,17 @@ end
 -- refreshes the pins of the given pinType
 -- if no pinType is given, all pins are refreshed
 function Harvest.RefreshPins(pinTypeId)
+    -- TODO remove
     -- refresh all pins if no pin type was given
     if not pinTypeId then
         for _, pinTypeId in pairs(Harvest.PINTYPES) do
-            RefreshPinsInAllControllers(pinTypeId)
+            --RefreshPinsInAllControllers(pinTypeId)
         end
         return
     end
     -- refresh only the pins of the given pin type
     if Harvest.contains(Harvest.PINTYPES, pinTypeId) then
-        RefreshPinsInAllControllers(pinTypeId)
+        --RefreshPinsInAllControllers(pinTypeId)
     end
 end
 

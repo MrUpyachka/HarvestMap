@@ -242,7 +242,6 @@ function COMPASS_PINS:RefreshPins(pinType)
 				COMPASS_PINS.needsRefresh[pinType] = true
 			end
         end
-        d("Map visible, avoid compass pins refresh")
 		return
 	end
 
@@ -261,7 +260,6 @@ function COMPASS_PINS:RefreshPins(pinType)
 			layout.maxDistance2 = layout.maxDistance * layout.maxDistance
 		end
     end
-    d("Refresh pins on compass")
 	-- remove the old pins...
 	COMPASS_PINS:RemovePins(pinType)
 	-- ...and call the callback functions to get new pins
