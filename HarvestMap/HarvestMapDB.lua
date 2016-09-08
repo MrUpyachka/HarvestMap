@@ -171,7 +171,7 @@ local function updateSaveFile(id, type, timestamp, x, y, xg, yg, items)
     mapData[type] = typeOnMapData
 
     -- the third entry used to be the node name, but that data isn't used anymore. so save nil instead
-    typeOnMapData[id] = Serialize(dataToSerialize)
+    typeOnMapData[#typeOnMapData + 1] = Serialize(dataToSerialize) -- TODO FIXME calculate id in save file. Avoid usage of id from cache. Not tested.
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -429,32 +429,6 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 -- END Interface of storage to be used by controllers ------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------------------------------------------------
--- BEGIN Functions to iterate over cache -------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------
-
---- Returns node data as tuple.
--- @param type type of node - typeId.
--- @param callback function to called for each node with tuple of node data as argument.
---
-function HarvestDB.forNodesOfType(type, callback)
-    HarvestDB.loadNodesOfTypeIfNecessary(type)
-    local typeNodes = typeCache[type]
-    if not typeNodes then
-        --HarvestDebugUtils.debug("No pins of type " .. type .. " in cache.")
-        return
-    end
-    --HarvestDebugUtils.debug(#typeCache[type] .. " pins of type " .. type .. " in cache.")
-    for index, id in pairs(typeCache[type]) do
-        callback(id, idCache.types[id], idCache.timestamps[id], idCache.xLocals[id], idCache.yLocals[id],
-            idCache.xGlobals[id], idCache.yGlobals[id], idCache.items[id])
-    end
-end
-
-------------------------------------------------------------------------------------------------------------------------
--- END Functions to iterate over cache ---------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
 ---
@@ -1036,7 +1010,7 @@ function HarvestDB.loadDivisionsOnMapTODOrework(type, map, measurement)
     local localToGlobal = HarvestMapUtils.convertLocalToGlobal
     -- create table if it doesn't exist yet
     local saveFile = GetSaveFile(map)
-
+    -- TODO investigate how to perform re-indexation for nodes in save file.
     saveFile.data[map] = (saveFile.data[map]) or {}
     saveFile.data[map][type] = (saveFile.data[map][type]) or {}
     if not saveFile.data[map] or not saveFile.data[map][type] then

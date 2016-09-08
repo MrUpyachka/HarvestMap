@@ -6,8 +6,8 @@ HarvestMapController = {}
 
 
 --[[ TODO list:
--- Move pins displaying logic to MapPinController.
---
+-- Heat map support.
+-- Compass support.
  ]] --
 
 --- self reference.
